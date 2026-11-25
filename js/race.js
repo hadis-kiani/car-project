@@ -48,6 +48,9 @@
     this.driftHold = 0;
     this.offroad = false;
     this.wrongWayT = 0;
+    this.skidQuads = [];
+    this.skidTimer = 0;
+    this._skidGeo = null;
     this.shake = 0;
     this.hudTimer = 0;
     this.lastSeg = null;
@@ -531,6 +534,24 @@
       this.audio.setScreech(this.offroad ? 0.10 : 0);
     }
 
+    /* -------- رد لاستیک روی آسفالت -------- */
+    var hardSlip = Math.abs(this.sl) > 3.1;
+    var handBraking = handbrake && Math.abs(this.sf) > 7;
+    if ((hardSlip || handBraking) && this.state === 'racing' && !this.offroad) {
+      this.skidTimer -= dt;
+      if (this.skidTimer <= 0) { this.skidTimer = 0.030; this._addSkidMark(near2); }
+    }
+    for (var sq = this.skidQuads.length - 1; sq >= 0; sq--) {
+      var quad = this.skidQuads[sq];
+      quad.age += dt;
+      var life = Math.max(0, 1 - quad.age / 16);
+      quad.mat.opacity = 0.5 * life;
+      if (life <= 0) {
+        this.scene.remove(quad.mesh); quad.mat.dispose();
+        this.skidQuads.splice(sq, 1);
+      }
+    }
+
     /* -------- صدای موتور و باد -------- */
     var speedFrac = clamp(Math.abs(this.sf) / topMS, 0, 1);
     var gearFloat = speedFrac * 5.999;
@@ -554,6 +575,29 @@
       var aCar = this.ai[f];
       if (!aCar.finished && aCar.lap > this.laps) { aCar.finished = true; aCar.finishTime = this.racingTime; }
     }
+  };
+
+  RaceSession.prototype._addSkidMark = function (near) {
+    var MAXQ = 110;
+    while (this.skidQuads.length >= MAXQ) { var oldQ = this.skidQuads.shift(); this.scene.remove(oldQ.mesh); oldQ.mat.dispose(); }
+    if (!this._skidGeo) this._skidGeo = new THREE.PlaneGeometry(1.62, 0.85); // عرض دو چرخ عقب
+    var ud = this.player.userData;
+    var W = ud.bodyWidth || 1.9, L = ud.bodyLength || 4.4, wr = ud.wheelRadius || 0.33;
+    var localZ = -(L/2 - wr - 0.42);
+    var cy = Math.cos(this.yaw), sy = Math.sin(this.yaw);
+    // مرکز محور عقب در فضای جهان
+    var cx = this.ppos.x + localZ * sy;
+    var cz = this.ppos.z + localZ * cy;
+    var baseY = (near && near.sample && near.sample.pos.y != null ? near.sample.pos.y : (this.player.position.y || 0));
+    var mat = new THREE.MeshBasicMaterial({ color: 0x080808, transparent: true, opacity: 0.5, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -3, polygonOffsetUnits: -3 });
+    var mesh = new THREE.Mesh(this._skidGeo, mat);
+    mesh.rotation.order = 'YXZ';
+    mesh.rotation.y = this.yaw;
+    mesh.rotation.x = -Math.PI / 2;
+    mesh.position.set(cx, baseY + 0.016, cz);
+    mesh.renderOrder = 2;
+    this.scene.add(mesh);
+    this.skidQuads.push({ mesh: mesh, mat: mat, age: 0 });
   };
 
   RaceSession.prototype._updateAICar = function (ai, dt) {

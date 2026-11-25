@@ -188,8 +188,33 @@
     sun.position.set(Math.cos(0.8) * 1400, elev * 1300, Math.sin(0.8) * 1400);
     sun.scale.set(todId === 'sunset' ? 620 : 380, todId === 'sunset' ? 620 : 380, 1);
     scene.add(sun);
+    // هالهٔ افق (غروبِ نارنجی / شهرهای شب)
+    if (todId !== 'day') {
+      var glowTex = canvasTexture(mkCanvas(128, 128, function (g) {
+        var rg = g.createRadialGradient(64, 64, 2, 64, 64, 62);
+        if (todId === 'sunset') { rg.addColorStop(0, 'rgba(255,166,88,0.95)'); rg.addColorStop(0.4, 'rgba(255,110,70,0.42)'); rg.addColorStop(1, 'rgba(255,90,60,0)'); }
+        else { rg.addColorStop(0, 'rgba(96,128,220,0.55)'); rg.addColorStop(0.42, 'rgba(70,80,160,0.28)'); rg.addColorStop(1, 'rgba(60,60,140,0)'); }
+        g.fillStyle = rg; g.fillRect(0, 0, 128, 128);
+      }), 1, 1);
+      var horiz = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTex, transparent: true, blending: THREE.AdditiveBlending, fog: false, depthWrite: false, opacity: 0.95 }));
+      horiz.position.set(Math.cos(0.8) * 1250, todId === 'sunset' ? 30 : 20, Math.sin(0.8) * 1250);
+      horiz.scale.set(1500, todId === 'sunset' ? 560 : 420, 1);
+      scene.add(horiz);
+    }
     // ستاره‌ها در شب
     if (todId === 'night') {
+      // لایهٔ جرقه‌های درخشان‌تر روی ستاره‌های ریز
+      var sparkGeo = new THREE.BufferGeometry();
+      var sparkPos = [];
+      var rndS = mulberry32(555777);
+      for (var si = 0; si < 70; si++) {
+        var stheta = rndS() * Math.PI * 2, sphi = rndS() * Math.PI * 0.35;
+        var sr = 1440;
+        sparkPos.push(sr * Math.sin(sphi) * Math.cos(stheta), sr * Math.cos(sphi), sr * Math.sin(sphi) * Math.sin(stheta));
+      }
+      sparkGeo.setAttribute('position', new THREE.Float32BufferAttribute(sparkPos, 3));
+      var sparks = new THREE.Points(sparkGeo, new THREE.PointsMaterial({ color: 0xfff6d8, size: 7, sizeAttenuation: false, fog: false, transparent: true, opacity: 1 }));
+      scene.add(sparks);
       var starGeo = new THREE.BufferGeometry();
       var starPos = [];
       var rnd = mulberry32(987654);
@@ -216,7 +241,7 @@
       }), 1, 1);
       var rnd2 = mulberry32(1234);
       for (var ci = 0; ci < 9; ci++) {
-        var cloud = new THREE.Sprite(new THREE.SpriteMaterial({ map: cloudTex, transparent: true, opacity: 0.9, fog: false, depthWrite: false }));
+        var cloud = new THREE.Sprite(new THREE.SpriteMaterial({ map: cloudTex, color: todId === 'sunset' ? 0xffc9a3 : 0xffffff, transparent: true, opacity: 0.9, fog: false, depthWrite: false }));
         var ang = rnd2() * Math.PI * 2;
         cloud.position.set(Math.cos(ang) * 950, 190 + rnd2() * 130, Math.sin(ang) * 950);
         cloud.scale.set(260 + rnd2() * 180, 110 + rnd2() * 70, 1);
@@ -310,6 +335,15 @@
         var beacon = new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.6, 0.6), new THREE.MeshStandardMaterial({ color: 0x330000, emissive: 0xff2020, emissiveIntensity: 2.4 }));
         beacon.position.set(x, h + 0.4, z);
         scene.add(beacon);
+      }
+      if (h > 26) { // نوار نئون لبه‌بام روی برج‌های بلند
+        var NEON_EDGE = [0x00e5ff, 0xff2fd6, 0xffb703, 0x00ffa3, 0x9d4edd];
+        var edgeColor = NEON_EDGE[Math.floor(rng() * NEON_EDGE.length)];
+        var edge = new THREE.Mesh(new THREE.BoxGeometry(w + 0.35, 0.32, d + 0.35),
+          new THREE.MeshStandardMaterial({ color: 0x050505, emissive: edgeColor, emissiveIntensity: todP.emissive * 1.7, roughness: 0.6 }));
+        edge.position.set(x, h + 0.08, z);
+        edge.rotation.y = box.rotation.y;
+        scene.add(edge);
       }
       colliders.push({ x: x, z: z, r: Math.max(w, d) * 0.68 });
       placed++;
@@ -524,6 +558,23 @@
       scene.add(cone2);
       if (dist2 < halfW + 6) colliders.push({ x: tx, z: tz, r: 0.45 });
     }
+    /* میله‌های برفی قرمز/سفید روی بخش‌های مرتفع */
+    var stripeTex = canvasTexture(mkCanvas(16, 64, function (g) {
+      g.fillStyle = '#f2f2f2'; g.fillRect(0, 0, 16, 64);
+      g.fillStyle = '#d1342c';
+      g.fillRect(0, 6, 16, 10); g.fillRect(0, 30, 16, 10); g.fillRect(0, 54, 16, 8);
+    }), 1, 1);
+    var poleMat = new THREE.MeshStandardMaterial({ map: stripeTex, roughness: 0.6, emissive: 0xffffff, emissiveMap: stripeTex, emissiveIntensity: 0.18 });
+    var poleGeo = new THREE.CylinderGeometry(0.045, 0.045, 1.15, 6);
+    for (var p = 0; p < samples.length; p += 9) {
+      var sp = samples[p];
+      if ((sp.pos.y || 0) < 12) continue;
+      [-1, 1].forEach(function (sd) {
+        var poleM = new THREE.Mesh(poleGeo, poleMat);
+        poleM.position.set(sp.pos.x + sp.side.x * sd * (halfW + 0.55), (sp.pos.y || 0) + 0.57, sp.pos.z + sp.side.z * sd * (halfW + 0.55));
+        scene.add(poleM);
+      });
+    }
     /* تابلوهای هشدار پیچ */
     var chevTex = canvasTexture(mkCanvas(128, 64, function (g) {
       g.fillStyle = '#ffcf33'; g.fillRect(0, 0, 128, 64);
@@ -674,7 +725,8 @@
     /* زمین و جاده */
     if (trackDef.env === 'mountain') buildHeightfield(scene, samples, halfW);
     else buildGround(scene, trackDef.env, maxExtent);
-    var roadMat = new THREE.MeshStandardMaterial({ map: roadTex, roughness: 0.94, metalness: 0.02 });
+    var wetRoad = todP.emissive > 0.5;
+    var roadMat = new THREE.MeshStandardMaterial({ map: roadTex, roughness: wetRoad ? 0.38 : 0.94, metalness: wetRoad ? 0.32 : 0.02, envMapIntensity: wetRoad ? 1.5 : 1.0 });
     var road = buildRibbon(samples, null, function () { return halfW; }, 7, roadMat, 0.0);
     scene.add(road);
 

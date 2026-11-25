@@ -187,6 +187,24 @@
     var bg = g.createRadialGradient(cx, cy, 30, cx, cy, 126);
     bg.addColorStop(0, '#0c0c0e'); bg.addColorStop(0.75, '#17171a'); bg.addColorStop(1, '#050506');
     g.fillStyle = bg; g.fillRect(0, 0, 256, 256);
+    // دیسک ترمز سوراخ‌دار (پشت پره‌ها دیده می‌شود)
+    var disc = g.createRadialGradient(cx, cy, 34, cx, cy, 96);
+    disc.addColorStop(0, '#3a3a3f'); disc.addColorStop(0.55, '#55555c'); disc.addColorStop(0.8, '#2c2c31'); disc.addColorStop(1, '#191920');
+    g.fillStyle = disc; g.beginPath(); g.arc(cx, cy, 94, 0, Math.PI*2); g.fill();
+    // شیارهای خنک‌کنندهٔ دیسک
+    g.strokeStyle = 'rgba(12,12,16,0.85)'; g.lineWidth = 5;
+    for (var dd = 0; dd < 12; dd++) {
+      var da = (dd / 12) * Math.PI * 2;
+      g.beginPath(); g.moveTo(cx + Math.cos(da) * 52, cy + Math.sin(da) * 52); g.lineTo(cx + Math.cos(da + 0.35) * 88, cy + Math.sin(da + 0.35) * 88); g.stroke();
+    }
+    // سوراخ‌های دیسک
+    g.fillStyle = '#0a0a0d';
+    for (var hp = 0; hp < 18; hp++) {
+      var ha = (hp / 18) * Math.PI * 2 + 0.17;
+      g.beginPath(); g.arc(cx + Math.cos(ha) * 70, cy + Math.sin(ha) * 70, 3.1, 0, Math.PI*2); g.fill();
+    }
+    // هاب دیسک (تیره‌تر)
+    g.fillStyle = '#232329'; g.beginPath(); g.arc(cx, cy, 36, 0, Math.PI*2); g.fill();
     // لبهٔ بیرونی
     g.beginPath(); g.arc(cx, cy, 122, 0, Math.PI*2); g.lineWidth = 14;
     g.strokeStyle = mid; g.stroke();
@@ -276,6 +294,16 @@
     g.strokeStyle = ring; g.lineWidth = tireId === 'street' ? 5 : 8;
     g.beginPath(); g.arc(128,128,112,0,Math.PI*2); g.stroke();
     g.beginPath(); g.arc(128,128,84,0,Math.PI*2); g.lineWidth = 3; g.strokeStyle = '#2e2e33'; g.stroke();
+    if (tireId !== 'street') {
+      // نوشته‌های دیوارهٔ لاستیک مسابقه‌ای
+      g.save(); g.translate(128, 128);
+      g.fillStyle = tireId === 'slick' ? '#c8a83a' : '#d8d8dc';
+      g.font = 'bold 15px Arial, sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle';
+      g.fillText('N I T R O', 0, -97); g.fillText('R A C I N G', 0, 97);
+      g.font = '11px Arial'; g.fillStyle = '#5a5a60';
+      g.fillText('295/30 ZR21', 0, -80); g.fillText('295/30 ZR21', 0, 80);
+      g.restore();
+    }
     var tex = new THREE.CanvasTexture(c);
     tex.anisotropy = 4; tex.encoding = THREE.sRGBEncoding;
     sidewallCache[tireId] = tex;
@@ -399,12 +427,20 @@
         group.add(bumper);
       });
     } else {
+      var drlMat = new THREE.MeshStandardMaterial({ color: 0xe8fbff, emissive: 0xbfefff, emissiveIntensity: 2.6, metalness: 0.1, roughness: 0.25 });
       [-1, 1].forEach(function (s) {
         var head = new THREE.Mesh(new THREE.BoxGeometry(0.36, 0.075, 0.10), headMat);
         head.position.set(s * (W/2 - 0.36), hy, hz);
         head.rotation.x = -0.20;
         head.rotation.y = -s * 0.16;
         group.add(head);
+        // نوار نور روز (DRL) بالای چراغ — چشم عصبانی مدرن
+        var drl = new THREE.Mesh(new THREE.BoxGeometry(0.34, 0.028, 0.06), drlMat);
+        drl.position.set(s * (W/2 - 0.36), hy + 0.075, hz + 0.012);
+        drl.rotation.x = -0.20;
+        drl.rotation.y = -s * 0.16;
+        drl.rotation.z = s * 0.13; // زاویهٔ پلنگی رو به مرکز
+        group.add(drl);
       });
       // نوار عقب تمام‌عرض
       var tail = new THREE.Mesh(new THREE.BoxGeometry(W * 0.72, 0.055, 0.08), tailMat);
@@ -423,6 +459,13 @@
       splitter.position.set(0, 0.135, L/2 - 0.05); group.add(splitter);
       var diffuser = new THREE.Mesh(new THREE.BoxGeometry(W * 0.72, 0.075, 0.16), carbonMat);
       diffuser.position.set(0, 0.15, -L/2 - 0.02); group.add(diffuser);
+      if (b.sideIntake) { // فین‌های دیفیوزر برای سوپر/هایپر
+        [-0.27, -0.135, 0, 0.135, 0.27].forEach(function (fx) {
+          var finD = new THREE.Mesh(new THREE.BoxGeometry(0.022, 0.095, 0.15), trimMat);
+          finD.position.set(fx, 0.148, -L/2 - 0.035);
+          group.add(finD);
+        });
+      }
       var exhaust = new THREE.Mesh(new THREE.CylinderGeometry(0.032, 0.032, 0.09, 12), CHROME());
       [-1, 1].forEach(function (s) {
         var ex = exhaust.clone();
@@ -431,6 +474,53 @@
         group.add(ex);
       });
     }
+
+    /* ---- کالیپر ترمز (ثابت به بدنه، پشت رینگ) ---- */
+    var caliperMat = new THREE.MeshStandardMaterial({ color: 0xd52f1f, metalness: 0.45, roughness: 0.32, emissive: 0x2a0602, emissiveIntensity: 0.7 });
+    var caliperGeo = new THREE.BoxGeometry(0.085, 0.135, 0.05);
+    [[(W/2 - 0.155), 1], [-(W/2 - 0.155), -1]].forEach(function (cfg) {
+      var wx = cfg[0];
+      [[(L/2 - 0.335 - 0.42), 1], [-(L/2 - 0.335 - 0.42), -1]].forEach(function (wz) {
+        var cal = new THREE.Mesh(caliperGeo, caliperMat);
+        var r = 0.185;
+        cal.position.set(wx, 0.335 + r * 0.72, wz[0] - r * 0.72);
+        cal.rotation.x = -0.75;
+        group.add(cal);
+      });
+    });
+
+    /* ---- رکاب‌های کربنی کناری ---- */
+    if (!b.classic) {
+      [-1, 1].forEach(function (s) {
+        var skirt = new THREE.Mesh(new THREE.BoxGeometry(0.07, 0.055, L * 0.5), carbonMat);
+        skirt.position.set(s * (W/2 + 0.012), 0.155, -0.1);
+        group.add(skirt);
+      });
+    }
+
+    /* ---- باله کوسهٔ سقف ---- */
+    if (!b.classic) {
+      var fin = new THREE.Mesh(new THREE.BoxGeometry(0.035, 0.055, 0.14), carbonMat);
+      fin.position.set(0, b.roof + 0.045, -L * 0.21);
+      group.add(fin);
+    }
+
+    /* ---- ثبت‌پلاک جلو و عقب ---- */
+    var plateTex = (function () {
+      var c = document.createElement('canvas'); c.width = 128; c.height = 40;
+      var g2 = c.getContext('2d');
+      g2.fillStyle = '#eef0f2'; g2.fillRect(0, 0, 128, 40);
+      g2.strokeStyle = '#1c1f26'; g2.lineWidth = 4; g2.strokeRect(2, 2, 124, 36);
+      g2.fillStyle = '#1c1f26'; g2.font = 'bold 24px Tahoma, Arial'; g2.textAlign = 'center'; g2.textBaseline = 'middle';
+      g2.fillText('NITRO·01', 64, 21);
+      var t = new THREE.CanvasTexture(c); t.encoding = THREE.sRGBEncoding; return t;
+    })();
+    [[1, L/2 + 0.028], [-1, -L/2 - 0.028]].forEach(function (cfg) {
+      var plate = new THREE.Mesh(new THREE.PlaneGeometry(0.34, 0.105), new THREE.MeshStandardMaterial({ map: plateTex, roughness: 0.5, metalness: 0.1 }));
+      plate.position.set(0, 0.315, cfg[1]);
+      plate.rotation.y = cfg[0] === 1 ? 0 : Math.PI;
+      group.add(plate);
+    });
 
     /* ---- آینه‌ها ---- */
     [-1, 1].forEach(function (s) {
