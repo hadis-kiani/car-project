@@ -510,12 +510,30 @@
     /* -------- اعمال تبدیل‌ها به مدل -------- */
     this.player.position.set(this.ppos.x, roadY, this.ppos.z);
     var rollTarget = clamp(-this.steerVis * speedAbs * 0.0021, -0.085, 0.085) + (handbrake && Math.sign(this.steerVis) !== 0 ? Math.sign(this.steerVis) * 0.03 : 0);
+    var pitchTarget = (brake || handbrake ? 0.045 : 0) - (throttle ? 0.025 : 0) - (this.nitroActive ? 0.035 : 0);
     this.player.rotation.y = this.yaw;
     this.player.rotation.x = -roadPitch;
-    this.player.rotation.z = lerp(this.player.rotation.z, rollTarget, 1 - Math.exp(-7 * dt));
+    var ud = this.player.userData;
+    if (ud.bodyGroup) {
+      ud.bodyGroup.rotation.z = lerp(ud.bodyGroup.rotation.z, rollTarget, 1 - Math.exp(-8 * dt));
+      ud.bodyGroup.rotation.x = lerp(ud.bodyGroup.rotation.x, pitchTarget, 1 - Math.exp(-9 * dt));
+    } else {
+      this.player.rotation.z = lerp(this.player.rotation.z, rollTarget, 1 - Math.exp(-7 * dt));
+    }
+    /* شعلهٔ اگزوز هنگام نیترو */
+    if (ud.exhaustFlames) {
+      var showFlame = this.nitroActive && this.state === 'racing';
+      for (var fl = 0; fl < ud.exhaustFlames.length; fl++) {
+        var fm = ud.exhaustFlames[fl];
+        fm.visible = showFlame;
+        if (showFlame) {
+          fm.material.opacity = 0.65 + Math.random() * 0.35;
+          fm.scale.set(1, 1, 0.8 + Math.random() * 0.8);
+        }
+      }
+    }
     /* چرخش و فرمان چرخ‌ها */
     var wSpin = (this.sf / 0.335) * dt;
-    var ud = this.player.userData;
     for (var w = 0; w < ud.wheels.length; w++) ud.wheels[w].rotation.x += wSpin;
     for (var s2 = 0; s2 < ud.steers.length; s2++) ud.steers[s2].rotation.y = this.steerVis * 0.42;
     /* ترمز: نوار قرمز روشن‌تر */

@@ -18,21 +18,77 @@
     luxury:  { L: 4.95, W: 1.95, belt: 0.795, roof: 1.16,  wr: 0.34,  ww: 0.28, wing: false, sideIntake: false, classic:false, chrome: true }
   };
 
+  /* ---------- نقشهٔ بازتاب محیطی (EnvMap) برای انعکاس طبیعی بدنه و شیشه ---------- */
+  var _cachedEnvMap = null;
+  function createEnvMap() {
+    if (_cachedEnvMap) return _cachedEnvMap;
+    var faces = [];
+    for (var i = 0; i < 6; i++) {
+      var c = document.createElement('canvas');
+      c.width = 128; c.height = 128;
+      var g = c.getContext('2d');
+      var grad = g.createLinearGradient(0, 0, 0, 128);
+      if (i === 2) { // +Y sky
+        grad.addColorStop(0, '#1e3c72');
+        grad.addColorStop(0.5, '#2a5298');
+        grad.addColorStop(1, '#70a1ff');
+      } else if (i === 3) { // -Y ground
+        grad.addColorStop(0, '#111318');
+        grad.addColorStop(1, '#050608');
+      } else { // sides
+        grad.addColorStop(0, '#0f2038');
+        grad.addColorStop(0.45, '#3b6998');
+        grad.addColorStop(0.52, '#ffffff');
+        grad.addColorStop(0.58, '#283344');
+        grad.addColorStop(1, '#0c0e14');
+      }
+      g.fillStyle = grad;
+      g.fillRect(0, 0, 128, 128);
+      // studio light strips
+      if (i !== 3) {
+        g.fillStyle = 'rgba(255,255,255,0.45)';
+        g.fillRect(10, 22, 108, 6);
+        g.fillStyle = 'rgba(0,229,255,0.22)';
+        g.fillRect(20, 40, 88, 3);
+      }
+      faces.push(c);
+    }
+    var tex = new THREE.CubeTexture(faces);
+    tex.needsUpdate = true;
+    _cachedEnvMap = tex;
+    return tex;
+  }
+
+  function shadowTexture() {
+    var c = document.createElement('canvas');
+    c.width = 128; c.height = 128;
+    var g = c.getContext('2d');
+    var grad = g.createRadialGradient(64, 64, 12, 64, 64, 62);
+    grad.addColorStop(0, 'rgba(0,0,0,0.78)');
+    grad.addColorStop(0.55, 'rgba(0,0,0,0.42)');
+    grad.addColorStop(1, 'rgba(0,0,0,0.0)');
+    g.fillStyle = grad;
+    g.fillRect(0, 0, 128, 128);
+    var t = new THREE.CanvasTexture(c);
+    return t;
+  }
+
   function paintMaterial(hex, finish) {
+    var env = createEnvMap();
     var m;
     if (finish === 'matte') {
-      m = new THREE.MeshPhysicalMaterial({ color: hex, metalness: 0.15, roughness: 0.78, clearcoat: 0, clearcoatRoughness: 0.6, envMapIntensity: 0.7 });
+      m = new THREE.MeshPhysicalMaterial({ color: hex, metalness: 0.15, roughness: 0.78, clearcoat: 0, clearcoatRoughness: 0.6, envMap: env, envMapIntensity: 0.7 });
     } else if (finish === 'pearl') {
-      m = new THREE.MeshPhysicalMaterial({ color: hex, metalness: 0.72, roughness: 0.22, clearcoat: 1.0, clearcoatRoughness: 0.08, envMapIntensity: 1.35 });
+      m = new THREE.MeshPhysicalMaterial({ color: hex, metalness: 0.72, roughness: 0.22, clearcoat: 1.0, clearcoatRoughness: 0.08, envMap: env, envMapIntensity: 1.45 });
     } else { /* gloss */
-      m = new THREE.MeshPhysicalMaterial({ color: hex, metalness: 0.62, roughness: 0.30, clearcoat: 1.0, clearcoatRoughness: 0.10, envMapIntensity: 1.25 });
+      m = new THREE.MeshPhysicalMaterial({ color: hex, metalness: 0.62, roughness: 0.28, clearcoat: 1.0, clearcoatRoughness: 0.09, envMap: env, envMapIntensity: 1.35 });
     }
     return m;
   }
-  var GLASS  = function(){ return new THREE.MeshStandardMaterial({ color: 0x0d141a, metalness: 0.95, roughness: 0.06, envMapIntensity: 1.7 }); };
+  var GLASS  = function(){ return new THREE.MeshStandardMaterial({ color: 0x0d141a, metalness: 0.95, roughness: 0.05, envMap: createEnvMap(), envMapIntensity: 1.8 }); };
   var TRIM   = function(){ return new THREE.MeshStandardMaterial({ color: 0x121316, metalness: 0.35, roughness: 0.72 }); };
-  var CHROME = function(){ return new THREE.MeshStandardMaterial({ color: 0xe8e9ec, metalness: 1.0, roughness: 0.14, envMapIntensity: 1.5 }); };
-  var CARBON = function(){ return new THREE.MeshStandardMaterial({ color: 0x17181b, metalness: 0.6, roughness: 0.38 }); };
+  var CHROME = function(){ return new THREE.MeshStandardMaterial({ color: 0xe8e9ec, metalness: 1.0, roughness: 0.12, envMap: createEnvMap(), envMapIntensity: 1.6 }); };
+  var CARBON = function(){ return new THREE.MeshStandardMaterial({ color: 0x17181b, metalness: 0.6, roughness: 0.38, envMap: createEnvMap(), envMapIntensity: 0.9 }); };
 
   /* ---------- پروفایل بدنه (نمایش جانبی) ---------- */
   function lowerBodyShape(b) {
@@ -530,17 +586,44 @@
       mirror.position.set(s * (W/2 + 0.065), b.belt + 0.045, L*0.085); group.add(mirror);
     });
 
-    /* ---- چرخ‌ها ---- */
+    /* ---- گروه بدنه برای انیمیشن تعلیق (pitch / roll / bounce) ---- */
+    var bodyGroup = new THREE.Group();
+    group.children.slice().forEach(function (ch) { bodyGroup.add(ch); });
+    group.add(bodyGroup);
+
+    /* ---- شعلهٔ اگزوز (نیترو و تعویض دنده) ---- */
+    var exhaustFlames = [];
+    var flameGeo = new THREE.ConeGeometry(0.065, 0.42, 10);
+    flameGeo.rotateX(-Math.PI / 2);
+    var flameMat = new THREE.MeshBasicMaterial({ color: 0x00e5ff, transparent: true, opacity: 0.0, blending: THREE.AdditiveBlending, depthWrite: false });
+    [-0.36, 0.36].forEach(function (ex) {
+      var fl = new THREE.Mesh(flameGeo, flameMat);
+      fl.position.set(ex, 0.24, -L / 2 - 0.16);
+      fl.visible = false;
+      bodyGroup.add(fl);
+      exhaustFlames.push(fl);
+    });
+
+    /* ---- سایهٔ تماس روی زمین ---- */
+    var shadowMat = new THREE.MeshBasicMaterial({ map: shadowTexture(), transparent: true, depthWrite: false, opacity: 0.85 });
+    var shadowPlane = new THREE.Mesh(new THREE.PlaneGeometry(W + 0.85, L + 0.85), shadowMat);
+    shadowPlane.rotation.x = -Math.PI / 2;
+    shadowPlane.position.y = 0.018;
+    group.add(shadowPlane);
+
+    /* ---- چرخ‌ها + کالیپر ترمز ---- */
     var tireTex = sidewallTexture(opts.tire || 'street');
     var rimTex  = rimTexture(opts.rim || 'sport', (opts.rimColorHex || '#d7d9de'));
     var tireSide = new THREE.MeshStandardMaterial({ map: tireTex, roughness: 0.92, metalness: 0.0 });
-    var capMat   = new THREE.MeshStandardMaterial({ map: rimTex, roughness: 0.25, metalness: 0.85, envMapIntensity: 1.3 });
+    var capMat   = new THREE.MeshStandardMaterial({ map: rimTex, roughness: 0.22, metalness: 0.88, envMap: createEnvMap(), envMapIntensity: 1.4 });
     var tireCap  = new THREE.MeshStandardMaterial({ map: tireTex, roughness: 0.9 });
+    var caliperMat = new THREE.MeshStandardMaterial({ color: 0xd90429, roughness: 0.35, metalness: 0.6 });
     var wheelW = b.ww, wr = b.wr;
     var tireGeo = new THREE.CylinderGeometry(wr, wr, wheelW, 30, 1, false);
     tireGeo.rotateZ(Math.PI / 2);
     var rimGeo = new THREE.CylinderGeometry(wr * 0.64, wr * 0.64, wheelW + 0.016, 26, 1, false);
     rimGeo.rotateZ(Math.PI / 2);
+    var calGeo = new THREE.BoxGeometry(wheelW * 0.4, wr * 0.38, wr * 0.28);
 
     var wheels = [], steers = [];
     var wheelOffsets = [
@@ -557,6 +640,9 @@
       tire.castShadow = true;
       var rim = new THREE.Mesh(rimGeo, [trimMat, capMat, capMat]);
       spin.add(tire); spin.add(rim);
+      var caliper = new THREE.Mesh(calGeo, caliperMat);
+      caliper.position.set(off.x > 0 ? -wheelW * 0.15 : wheelW * 0.15, wr * 0.15, -wr * 0.35);
+      steerGroup.add(caliper);
       steerGroup.add(spin);
       group.add(steerGroup);
       wheels.push(spin);
@@ -591,11 +677,13 @@
     group.userData = {
       bodyLength: L, bodyWidth: W, wheelRadius: b.wr,
       cameraY: b.belt + (b.roof - b.belt) * 0.60 + 0.05,
+      bodyGroup: bodyGroup,
+      exhaustFlames: exhaustFlames,
       wheels: wheels, steers: steers, tailMat: tailMat, headMat: headMat,
       glowLight: glowLight, interior: interior, steeringWheel: wheel
     };
     return group;
   }
 
-  root.NitroCarFactory = { buildCar: buildCar, BODY: BODY };
+  root.NitroCarFactory = { buildCar: buildCar, BODY: BODY, createEnvMap: createEnvMap };
 })(typeof window !== 'undefined' ? window : globalThis);

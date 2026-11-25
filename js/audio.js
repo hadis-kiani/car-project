@@ -8,11 +8,19 @@
   function AudioEngine() {
     this.ctx = null;
     this.master = null;
+    this.sfxBus = null;
+    this.musicBus = null;
     this.muted = false;
+    this.musicMuted = false;
+    this.masterVol = 0.85;
+    this.sfxVol = 0.90;
+    this.musicVol = 0.55;
+    this.carProfile = { baseFreq: 55, mult: 1.0, wave1: 'sawtooth', wave2: 'square' };
     this.engine = null;      // {osc1, osc2, noise, filter, gain, }
     this.screechGain = null;
     this.windGain = null;
     this.menuPad = null;
+    this.raceMusicTimer = null;
     this._ready = false;
   }
 
@@ -23,8 +31,17 @@
     try {
       this.ctx = new AC();
       this.master = this.ctx.createGain();
-      this.master.gain.value = this.muted ? 0 : 0.85;
+      this.master.gain.value = this.muted ? 0 : this.masterVol;
       this.master.connect(this.ctx.destination);
+
+      this.sfxBus = this.ctx.createGain();
+      this.sfxBus.gain.value = this.sfxVol;
+      this.sfxBus.connect(this.master);
+
+      this.musicBus = this.ctx.createGain();
+      this.musicBus.gain.value = this.musicMuted ? 0 : this.musicVol;
+      this.musicBus.connect(this.master);
+
       this._buildNoiseBuffer();
       this._buildEngine();
       this._buildScreech();
@@ -42,7 +59,39 @@
 
   AudioEngine.prototype.setMuted = function (m) {
     this.muted = !!m;
-    if (this.master) this.master.gain.setTargetAtTime(this.muted ? 0 : 0.85, this.ctx.currentTime, 0.05);
+    if (this.master) this.master.gain.setTargetAtTime(this.muted ? 0 : this.masterVol, this.ctx.currentTime, 0.05);
+  };
+  AudioEngine.prototype.setMasterVolume = function (v) {
+    this.masterVol = Math.max(0, Math.min(1, v));
+    if (this.master && !this.muted) this.master.gain.setTargetAtTime(this.masterVol, this.ctx.currentTime, 0.05);
+  };
+  AudioEngine.prototype.setSfxVolume = function (v) {
+    this.sfxVol = Math.max(0, Math.min(1, v));
+    if (this.sfxBus) this.sfxBus.gain.setTargetAtTime(this.sfxVol, this.ctx.currentTime, 0.05);
+  };
+  AudioEngine.prototype.setMusicVolume = function (v) {
+    this.musicVol = Math.max(0, Math.min(1, v));
+    if (this.musicBus && !this.musicMuted) this.musicBus.gain.setTargetAtTime(this.musicVol, this.ctx.currentTime, 0.05);
+  };
+  AudioEngine.prototype.setMusicMuted = function (m) {
+    this.musicMuted = !!m;
+    if (this.musicBus) this.musicBus.gain.setTargetAtTime(this.musicMuted ? 0 : this.musicVol, this.ctx.currentTime, 0.08);
+  };
+  AudioEngine.prototype.setCarProfile = function (cls) {
+    var profiles = {
+      muscle:  { baseFreq: 42, mult: 0.78, wave1: 'sawtooth', wave2: 'square' },
+      classic: { baseFreq: 48, mult: 0.88, wave1: 'sawtooth', wave2: 'triangle' },
+      luxury:  { baseFreq: 52, mult: 0.95, wave1: 'triangle', wave2: 'sawtooth' },
+      sports:  { baseFreq: 58, mult: 1.05, wave1: 'sawtooth', wave2: 'square' },
+      racing:  { baseFreq: 66, mult: 1.20, wave1: 'sawtooth', wave2: 'sawtooth' },
+      super:   { baseFreq: 68, mult: 1.25, wave1: 'sawtooth', wave2: 'triangle' },
+      hyper:   { baseFreq: 74, mult: 1.38, wave1: 'sawtooth', wave2: 'sawtooth' }
+    };
+    this.carProfile = profiles[cls] || profiles.sports;
+    if (this.engine) {
+      this.engine.o1.type = this.carProfile.wave1;
+      this.engine.o2.type = this.carProfile.wave2;
+    }
   };
 
   AudioEngine.prototype._buildNoiseBuffer = function () {
@@ -75,7 +124,8 @@
     if (!this._ready) return;
     var t = this.ctx.currentTime;
     var e = this.engine;
-    var freq = 55 + Math.pow(rpm01, 1.55) * 640;
+    var p = this.carProfile || { baseFreq: 55, mult: 1.0 };
+    var freq = p.baseFreq + Math.pow(rpm01, 1.55) * 640 * p.mult;
     e.o1.frequency.setTargetAtTime(freq, t, 0.06);
     e.o2.frequency.setTargetAtTime(freq * 0.5, t, 0.06);
     e.filter.frequency.setTargetAtTime(320 + rpm01 * 2600 + throttle * 900, t, 0.08);
@@ -180,21 +230,57 @@
   AudioEngine.prototype.countGo = function () { this.beep(true); };
   AudioEngine.prototype.gearShift = function () {
     if (!this._ready) return;
-    blip(this.ctx, this.master, 'square', 300, 0.05, 0.07);
+    var t = this.ctx.currentTime;
+    blip(this.ctx, this.sfxBus || this.master, 'square', 280, 0.05, 0.09, t);
+    // turbo blow-off hiss
+    var src = this.ctx.createBufferSource(); src.buffer = this.noiseBuffer;
+    var bp = this.ctx.createBiquadFilter(); bp.type = 'bandpass'; bp.frequency.setValueAtTime(2400, t); bp.frequency.exponentialRampToValueAtTime(900, t + 0.14);
+    var g = this.ctx.createGain(); g.gain.setValueAtTime(0.08, t); g.gain.exponentialRampToValueAtTime(0.001, t + 0.15);
+    src.connect(bp); bp.connect(g); g.connect(this.sfxBus || this.master);
+    src.start(t); src.stop(t + 0.16);
+  };
+
+  AudioEngine.prototype.playCarSelect = function () {
+    if (!this._ready) return;
+    var t = this.ctx.currentTime;
+    blip(this.ctx, this.sfxBus || this.master, 'sine', 520, 0.07, 0.08, t);
+    blip(this.ctx, this.sfxBus || this.master, 'triangle', 780, 0.09, 0.11, t + 0.05);
+  };
+
+  AudioEngine.prototype.playEngineStart = function () {
+    if (!this._ready) return;
+    var ctx = this.ctx, t = ctx.currentTime, bus = this.sfxBus || this.master;
+    var p = this.carProfile || { baseFreq: 55, mult: 1.0 };
+    // Starter crank
+    for (var i = 0; i < 3; i++) {
+      blip(ctx, bus, 'sawtooth', 95, 0.06, 0.07, t + i * 0.09);
+    }
+    // Ignition roar
+    var o = ctx.createOscillator(); o.type = 'sawtooth';
+    o.frequency.setValueAtTime(p.baseFreq * 0.9, t + 0.28);
+    o.frequency.exponentialRampToValueAtTime(p.baseFreq * 2.4 * p.mult, t + 0.55);
+    o.frequency.exponentialRampToValueAtTime(p.baseFreq * 1.15, t + 1.05);
+    var lp = ctx.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 650;
+    var g = ctx.createGain();
+    g.gain.setValueAtTime(0.001, t + 0.26);
+    g.gain.linearRampToValueAtTime(0.24, t + 0.42);
+    g.gain.exponentialRampToValueAtTime(0.001, t + 1.15);
+    o.connect(lp); lp.connect(g); g.connect(bus);
+    o.start(t + 0.26); o.stop(t + 1.2);
   };
 
   /* ---------- پد محیطی منو (بسیار ملایم) ---------- */
   AudioEngine.prototype.startMenuPad = function () {
     if (!this._ready || this.menuPad) return;
     var ctx = this.ctx;
-    var g = ctx.createGain(); g.gain.value = 0.05;
+    var g = ctx.createGain(); g.gain.value = 0.08;
     var lp = ctx.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 340; lp.Q.value = 4;
     var o1 = ctx.createOscillator(); o1.type = 'sawtooth'; o1.frequency.value = 55;
     var o2 = ctx.createOscillator(); o2.type = 'sawtooth'; o2.frequency.value = 55 * 1.5 + 0.4;
     var lfo = ctx.createOscillator(); lfo.frequency.value = 0.07;
     var lfoGain = ctx.createGain(); lfoGain.gain.value = 180;
     lfo.connect(lfoGain); lfoGain.connect(lp.frequency);
-    o1.connect(lp); o2.connect(lp); lp.connect(g); g.connect(this.master);
+    o1.connect(lp); o2.connect(lp); lp.connect(g); g.connect(this.musicBus || this.master);
     o1.start(); o2.start(); lfo.start();
     this.menuPad = { o1: o1, o2: o2, lfo: lfo, gain: g };
   };
@@ -206,6 +292,35 @@
       setTimeout(function () { try { p.o1.stop(); p.o2.stop(); p.lfo.stop(); } catch (e) {} }, 1200);
     } catch (e) {}
     this.menuPad = null;
+  };
+
+  /* ---------- موسیقی هیجان‌انگیز مسابقه ---------- */
+  AudioEngine.prototype.startRaceMusic = function () {
+    if (!this._ready || this.raceMusicTimer) return;
+    var self = this, step = 0;
+    var bassNotes = [55, 55, 65.4, 55, 73.4, 55, 82.4, 65.4];
+    var arpNotes  = [220, 261.6, 329.6, 392, 329.6, 261.6, 440, 392];
+    this.raceMusicTimer = setInterval(function () {
+      if (!self._ready || self.muted || self.musicMuted) return;
+      var ctx = self.ctx, t = ctx.currentTime, bus = self.musicBus || self.master;
+      var bn = bassNotes[step % bassNotes.length];
+      var an = arpNotes[step % arpNotes.length];
+      // Driving synth bass
+      blip(ctx, bus, 'sawtooth', bn, 0.11, 0.14, t);
+      // Arp lead
+      if (step % 2 === 0) blip(ctx, bus, 'triangle', an, 0.05, 0.11, t);
+      // Kick on 0, 4
+      if (step % 4 === 0) {
+        var ko = ctx.createOscillator(); ko.type = 'sine';
+        ko.frequency.setValueAtTime(130, t); ko.frequency.exponentialRampToValueAtTime(38, t + 0.12);
+        var kg = ctx.createGain(); kg.gain.setValueAtTime(0.22, t); kg.gain.exponentialRampToValueAtTime(0.001, t + 0.14);
+        ko.connect(kg); kg.connect(bus); ko.start(t); ko.stop(t + 0.15);
+      }
+      step++;
+    }, 155);
+  };
+  AudioEngine.prototype.stopRaceMusic = function () {
+    if (this.raceMusicTimer) { clearInterval(this.raceMusicTimer); this.raceMusicTimer = null; }
   };
 
   root.NitroAudio = { AudioEngine: AudioEngine };

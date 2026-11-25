@@ -160,6 +160,13 @@
       <div class="preview-area">
         <div class="preview-glow"></div>
         <canvas id="garage-canvas"></canvas>
+        <div class="cam-presets" id="garage-cam-presets">
+          <button class="cam-btn active" data-cam="orbit">آزاد</button>
+          <button class="cam-btn" data-cam="front">جلو</button>
+          <button class="cam-btn" data-cam="side">کنار</button>
+          <button class="cam-btn" data-cam="rear">عقب</button>
+          <button class="cam-btn" data-cam="wheel">رینگ</button>
+        </div>
         <button class="preview-arrow prev" id="car-prev" aria-label="ماشین قبلی">›</button>
         <button class="preview-arrow next" id="car-next" aria-label="ماشین بعدی">‹</button>
         <div class="preview-counter" id="preview-counter">۱ / ۱۸</div>
@@ -380,6 +387,14 @@
         <div id="setting-mute" class="choice-row">
           <button class="choice-chip" data-mute="off">روشن 🔊</button>
           <button class="choice-chip" data-mute="on">بی‌صدا 🔇</button>
+        </div>
+      </div>
+      <div class="setting-row">
+        <div><div class="setting-name">حجم صدا</div><div class="setting-desc">کل صدا / افکت / موسیقی</div></div>
+        <div class="vol-sliders">
+          <label>کل <input type="range" id="vol-master" min="0" max="100" value="85"></label>
+          <label>افکت <input type="range" id="vol-sfx" min="0" max="100" value="90"></label>
+          <label>موسیقی <input type="range" id="vol-music" min="0" max="100" value="55"></label>
         </div>
       </div>
       <button id="btn-reset-save" class="btn btn-danger">🗑️ شروع از صفر (حذف پیشرفت)</button>

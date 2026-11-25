@@ -175,6 +175,9 @@
         self.persist(); self.audio.setMuted(self.save.settings.muted); self._syncSettingsUI(); self._click();
       });
     });
+    if ($('vol-master')) $('vol-master').addEventListener('input', function (e) { self.audio.init(); self.audio.setMasterVolume(e.target.value / 100); });
+    if ($('vol-sfx'))    $('vol-sfx').addEventListener('input', function (e) { self.audio.init(); self.audio.setSfxVolume(e.target.value / 100); });
+    if ($('vol-music'))  $('vol-music').addEventListener('input', function (e) { self.audio.init(); self.audio.setMusicVolume(e.target.value / 100); });
     $('btn-reset-save').addEventListener('click', function () {
       if (window.confirm('تمام پیشرفت، ماشین‌های خریداری‌شده و رکوردها حذف شود؟')) {
         self.save = Data.resetSave();
@@ -468,20 +471,69 @@
   App.prototype._startPreviewLoop = function () {
     if (this._previewRAF) return;
     var self = this;
+    if (!this._camBound) {
+      this._camBound = true;
+      this._camMode = 'orbit';
+      this._camYaw = 0.45;
+      this._camPitch = 0.25;
+      this._camDist = 6.6;
+      var dragging = false, lastX = 0, lastY = 0;
+      var gc = $('garage-canvas');
+      if (gc) {
+        gc.addEventListener('pointerdown', function (e) { dragging = true; lastX = e.clientX; lastY = e.clientY; self._camMode = 'manual'; });
+        window.addEventListener('pointerup', function () { dragging = false; });
+        window.addEventListener('pointermove', function (e) {
+          if (!dragging) return;
+          self._camYaw -= (e.clientX - lastX) * 0.008;
+          self._camPitch = Math.max(0.08, Math.min(0.85, self._camPitch + (e.clientY - lastY) * 0.006));
+          lastX = e.clientX; lastY = e.clientY;
+        });
+        gc.addEventListener('wheel', function (e) {
+          e.preventDefault();
+          self._camDist = Math.max(3.2, Math.min(9.5, self._camDist + e.deltaY * 0.004));
+        }, { passive: false });
+      }
+      var presets = $('garage-cam-presets');
+      if (presets) {
+        presets.querySelectorAll('.cam-btn').forEach(function (btn) {
+          btn.addEventListener('click', function () {
+            presets.querySelectorAll('.cam-btn').forEach(function (b) { b.classList.remove('active'); });
+            btn.classList.add('active');
+            self._camMode = btn.getAttribute('data-cam');
+            self._click();
+          });
+        });
+      }
+    }
     this._lastPreviewTime = performance.now();
     var loop = function (t) {
       self._previewRAF = requestAnimationFrame(loop);
       var dt = Math.min(0.05, (t - self._lastPreviewTime) / 1000);
       self._lastPreviewTime = t;
+      var targetYaw = self._camYaw, targetPitch = self._camPitch, targetDist = self._camDist, lookY = 0.62;
+      if (self._camMode === 'orbit') {
+        self._camYaw += dt * 0.35;
+        targetYaw = self._camYaw; targetPitch = 0.24; targetDist = 6.6;
+      } else if (self._camMode === 'front') {
+        targetYaw = 0.12; targetPitch = 0.16; targetDist = 5.4;
+      } else if (self._camMode === 'side') {
+        targetYaw = Math.PI / 2; targetPitch = 0.14; targetDist = 5.8;
+      } else if (self._camMode === 'rear') {
+        targetYaw = Math.PI - 0.15; targetPitch = 0.18; targetDist = 5.4;
+      } else if (self._camMode === 'wheel') {
+        targetYaw = 1.15; targetPitch = 0.08; targetDist = 3.5; lookY = 0.42;
+      }
       if (self.previewGroup) {
-        self._previewSpin += dt * 0.45;
-        self.previewGroup.rotation.y = self._previewSpin;
+        self.previewGroup.rotation.y = 0;
       }
       if (self.garageCamera && self.garageRenderer) {
-        var ang = self._previewSpin * 0.35;
-        var radius = 7.0;
-        self.garageCamera.position.set(Math.sin(ang) * radius * 0.42, 2.15, Math.cos(ang * 0.8) * 0 + 6.35);
-        self.garageCamera.lookAt(0, 0.62, 0);
+        var cx = Math.sin(targetYaw) * Math.cos(targetPitch) * targetDist;
+        var cy = Math.sin(targetPitch) * targetDist + 0.55;
+        var cz = Math.cos(targetYaw) * Math.cos(targetPitch) * targetDist;
+        self.garageCamera.position.x += (cx - self.garageCamera.position.x) * Math.min(1, dt * 6);
+        self.garageCamera.position.y += (cy - self.garageCamera.position.y) * Math.min(1, dt * 6);
+        self.garageCamera.position.z += (cz - self.garageCamera.position.z) * Math.min(1, dt * 6);
+        self.garageCamera.lookAt(0, lookY, 0);
         self.garageRenderer.render(self.garageScene, self.garageCamera);
       }
     };
