@@ -46,10 +46,24 @@
           <span class="btn-icon">🏁</span>
           <span class="btn-text">شروع مسابقه<small>سه مسیر · سه زمان روز · رقابت با ۷ حریف هوشمند</small></span>
         </button>
-        <button id="btn-garage" class="btn btn-secondary btn-huge">
-          <span class="btn-icon">🔧</span>
-          <span class="btn-text">گاراژ<small>۱۸ ماشین کمیاب · رنگ، رینگ، لاستیک و ارتقا</small></span>
-        </button>
+        <div class="menu-grid">
+          <button id="btn-garage" class="menu-tile tile-cyan">
+            <span class="tile-icon">🔧</span>
+            <span class="tile-text">گاراژ<small>شخصی‌سازی، ارتقا و زیرنور</small></span>
+          </button>
+          <button id="btn-showroom" class="menu-tile tile-pink">
+            <span class="tile-icon">🏎️</span>
+            <span class="tile-text">نمایشگاه<small>کلکسیون ۱۸ ماشین؛ خرید و انتخاب</small></span>
+          </button>
+          <button id="btn-records" class="menu-tile tile-gold">
+            <span class="tile-icon">🏆</span>
+            <span class="tile-text">رکوردها<small>بهترین زمان‌ها، بردها و آمار</small></span>
+          </button>
+          <button id="btn-achievements" class="menu-tile tile-violet">
+            <span class="tile-icon">🎖️</span>
+            <span class="tile-text">دستاوردها<small>مأموریت‌ها، کوله‌بار افتخار</small></span>
+          </button>
+        </div>
         <button id="btn-settings" class="btn btn-ghost">⚙️ &nbsp;تنظیمات</button>
       </div>
     </div>
@@ -181,6 +195,70 @@
 
     <div class="car-strip-wrap">
       <div id="car-strip" class="car-strip"></div>
+    </div>
+  </section>
+
+  <!-- ============ نمایشگاه خودروها ============ -->
+  <section id="screen-showroom" class="screen">
+    <header class="subtopbar">
+      <button class="icon-btn back-btn" data-goto="menu" aria-label="بازگشت">←</button>
+      <h2>🏎️ نمایشگاه نیترو سیتی</h2>
+      <div class="pill pill-coins">🪙 <span id="showroom-coins">۰</span></div>
+    </header>
+
+    <div class="setup-scroll showroom-body">
+      <div class="showroom-head">
+        <div>
+          <h3 class="panel-title">کلکسیون کامل — ۱۸ خودروی کمیاب</h3>
+          <p class="panel-sub">بر اساس رده فیلتر کنید؛ خرید و انتخاب همین‌جاست؛ شخصی‌سازی و ارتقا در گاراژ.</p>
+        </div>
+        <div id="showroom-filters" class="choice-row"></div>
+      </div>
+      <div id="showroom-grid" class="showroom-grid"></div>
+    </div>
+  </section>
+
+  <!-- ============ رکوردها و آمار ============ -->
+  <section id="screen-records" class="screen">
+    <header class="subtopbar">
+      <button class="icon-btn back-btn" data-goto="menu" aria-label="بازگشت">←</button>
+      <h2>🏆 رکوردها و آمار</h2>
+      <div class="pill pill-coins">🪙 <span id="records-coins">۰</span></div>
+    </header>
+
+    <div class="setup-scroll records-body">
+      <div id="stat-tiles" class="stat-tiles"></div>
+      <div class="records-grid">
+        <div class="panel records-panel">
+          <h3 class="panel-title">⏱️ بهترین دور هر مسیر</h3>
+          <div id="best-laps" class="best-list"></div>
+        </div>
+        <div class="panel records-panel">
+          <h3 class="panel-title">🏁 بهترین زمان کل هر مسیر</h3>
+          <div id="best-totals" class="best-list"></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ دستاوردها ============ -->
+  <section id="screen-achievements" class="screen">
+    <header class="subtopbar">
+      <button class="icon-btn back-btn" data-goto="menu" aria-label="بازگشت">←</button>
+      <h2>🎖️ دستاوردهای شما</h2>
+      <div class="pill pill-coins">🪙 <span id="achievements-coins">۰</span></div>
+    </header>
+
+    <div class="setup-scroll achievements-body">
+      <div class="ach-overview">
+        <div class="ach-trophy">🏅</div>
+        <div>
+          <div class="ach-overview-num" id="ach-count">۰ / ۰</div>
+          <div class="ach-overview-label">دستاورد باز شده — رقابت کن، افتخار جمع کن</div>
+        </div>
+        <div class="ach-ring" id="ach-ring"><div class="ach-ring-hole"><span id="ach-percent">۰٪</span></div></div>
+      </div>
+      <div id="achievements-grid" class="achievements-grid"></div>
     </div>
   </section>
 

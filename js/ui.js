@@ -13,8 +13,24 @@
   function faNum(n) { return Number(Math.round(n)).toLocaleString('fa-IR'); }
   function clamp(v, a, b) { return Math.max(a, Math.min(b, v)); }
 
-  var SCREENS = ['screen-menu', 'screen-setup', 'screen-garage', 'screen-results', 'screen-hud'];
+  var SCREENS = ['screen-menu', 'screen-setup', 'screen-garage', 'screen-showroom', 'screen-records', 'screen-achievements', 'screen-results', 'screen-hud'];
   var ORDERED_CARS = Data.CARS.slice().sort(function (a, b) { return a.price - b.price; });
+
+  /* کاتالوگ دستاوردها — همه از روی آمار واقعی ذخیره محاسبه می‌شوند */
+  var ACHIEVEMENTS = [
+    { icon: '🏁', name: 'رانندهٔ تازه‌کار',   desc: 'اولین مسابقهٔ خود را تا خط پایان برسانید', target: 1,     prog: function (s) { return s.stats.races || 0; } },
+    { icon: '🏆', name: 'قهرمان خیابان',     desc: 'اولین برد خود را در مسابقه بگیرید',        target: 1,     prog: function (s) { return s.stats.wins || 0; } },
+    { icon: '🔟', name: 'دهه‌نورد',          desc: '۱۰ مسابقه در نیترو سیتی رانده باشید',      target: 10,    prog: function (s) { return s.stats.races || 0; } },
+    { icon: '🥇', name: 'پنج پیروزی',        desc: '۵ بار روی سکوی قهرمانی ایستاده باشید',     target: 5,     prog: function (s) { return s.stats.wins || 0; } },
+    { icon: '👑', name: 'پادشاه خیابان‌ها',  desc: '۱۵ پیروزی جمع کنید',                      target: 15,    prog: function (s) { return s.stats.wins || 0; } },
+    { icon: '💨', name: 'خبرهٔ دریفت',       desc: 'در یک مسابقه امتیاز دریفت ۱۵۰۰+ بگیرید',   target: 1500,  prog: function (s) { return Math.floor(s.stats.driftBest || 0); } },
+    { icon: '🔥', name: 'پادشاه دریفت',      desc: 'در یک مسابقه امتیاز دریفت ۶۰۰۰+ بگیرید',   target: 6000,  prog: function (s) { return Math.floor(s.stats.driftBest || 0); } },
+    { icon: '🚗', name: 'کلکسیونر',          desc: '۵ ماشین در گاراژ خود داشته باشید',          target: 5,     prog: function (s) { return s.owned.length; } },
+    { icon: '🏎️', name: 'کلکسیونر حرفه‌ای',  desc: '۸ ماشین در گاراژ خود داشته باشید',          target: 8,     prog: function (s) { return s.owned.length; } },
+    { icon: '🐛', name: 'سوار بوگاتی',       desc: 'بوگاتی شیرون را به گاراژ اضافه کنید',       target: 1,     prog: function (s) { return s.owned.indexOf('chiron') !== -1 ? 1 : 0; } },
+    { icon: '⚡', name: 'رکوردیست',          desc: 'حداقل یک رکورد بهترین دور ثبت کنید',        target: 1,     prog: function (s) { return Object.keys(s.bestLaps || {}).length; } },
+    { icon: '💎', name: 'استاد مسیرها',      desc: 'روی هر سه مسیر رکورد بهترین دور بزنید',     target: 3,     prog: function (s) { return Object.keys(s.bestLaps || {}).length; } }
+  ];
 
   function App() {
     this.audio = new AudioMan.AudioEngine();
@@ -66,7 +82,7 @@
   };
   App.prototype.persist = function () { Data.saveSave(this.save); };
   App.prototype._syncCoins = function () {
-    ['menu-coins', 'setup-coins', 'garage-coins'].forEach(function (id) {
+    ['menu-coins', 'setup-coins', 'garage-coins', 'showroom-coins', 'records-coins', 'achievements-coins'].forEach(function (id) {
       var el = $(id); if (el) el.textContent = faNum(this.save.coins);
     }, this);
   };
@@ -101,6 +117,25 @@
       self.audio.stopMenuPad();
       self.show('screen-garage');
       self._openGarage();
+    });
+    $('btn-showroom').addEventListener('click', function () {
+      self._click();
+      self.audio.stopMenuPad();
+      self.show('screen-showroom');
+      self._renderShowroom();
+      self._generateThumbnails();
+    });
+    $('btn-records').addEventListener('click', function () {
+      self._click();
+      self.audio.stopMenuPad();
+      self.show('screen-records');
+      self._renderRecords();
+    });
+    $('btn-achievements').addEventListener('click', function () {
+      self._click();
+      self.audio.stopMenuPad();
+      self.show('screen-achievements');
+      self._renderAchievements();
     });
     $('btn-settings').addEventListener('click', function () {
       self._click();
@@ -744,7 +779,7 @@
     function step() {
       if (i >= pending.length) {
         /* به‌روزرسانی تصاویر در استریپ */
-        document.querySelectorAll('#car-strip .car-chip').forEach(function (chip) {
+        document.querySelectorAll('#car-strip .car-chip, #showroom-grid .sr-card').forEach(function (chip) {
           var id = chip.getAttribute('data-car');
           var img = chip.querySelector('img');
           if (img && self._thumbs[id]) img.src = self._thumbs[id];
@@ -770,6 +805,141 @@
       setTimeout(step, 24);
     }
     setTimeout(step, 60);
+  };
+
+  /* ============ نمایشگاه ============ */
+  App.prototype._renderShowroom = function (filter) {
+    filter = filter || this._showroomFilter || 'all';
+    this._showroomFilter = filter;
+    var self = this;
+    var filters = $('showroom-filters');
+    filters.innerHTML = '';
+    var chips = [['all', 'همه']].concat(Object.keys(Data.CLASS_LABELS).map(function (k) { return [k, Data.CLASS_LABELS[k].name]; }));
+    chips.forEach(function (pair) {
+      var chip = document.createElement('button');
+      chip.className = 'choice-chip' + (pair[0] === filter ? ' selected' : '');
+      chip.textContent = pair[1];
+      chip.addEventListener('click', function () { self._click(); self._renderShowroom(pair[0]); });
+      filters.appendChild(chip);
+    });
+    var grid = $('showroom-grid');
+    grid.innerHTML = '';
+    ORDERED_CARS.filter(function (c) { return filter === 'all' || c.cls === filter; }).forEach(function (car) {
+      var owned = self.save.owned.indexOf(car.id) !== -1;
+      var selected = self.save.selectedId === car.id;
+      var afford = self.save.coins >= car.price;
+      var cls = Data.CLASS_LABELS[car.cls];
+      var eff = Data.effectiveStats(car, self.save);
+      var bar = function (label, frac) {
+        var pct = Math.round(clamp(frac, 0.04, 1) * 100);
+        return '<div class="sr-bar"><span>' + label + '</span><div class="bar"><i style="width:' + pct + '%"></i></div></div>';
+      };
+      var card = document.createElement('div');
+      card.className = 'sr-card' + (owned ? '' : ' locked') + (selected ? ' selected' : '');
+      card.setAttribute('data-car', car.id);
+      card.innerHTML =
+        '<img class="sr-thumb" alt="' + car.name + '" src="' + (self._thumbs[car.id] || TRANSPARENT_PIXEL) + '">' +
+        '<div class="sr-body">' +
+          '<div class="sr-class" style="color:' + cls.color + '">' + cls.name + '</div>' +
+          '<div class="sr-name">' + car.name + '</div>' +
+          '<div class="sr-bars">' +
+            bar('سرعت', eff.topKmh / 400) +
+            bar('شتاب', eff.accel / 13) +
+            bar('هندلینگ', eff.grip / 11) +
+          '</div>' +
+          '<div class="sr-action"><button class="sr-btn ' +
+            (selected ? 'selected">✓ انتخاب‌شده' : owned ? 'own">انتخاب' : afford ? 'buy">خرید · 🪙 ' + faNum(car.price) : 'poor">🪙 ' + faNum(car.price)) +
+          '</button></div>' +
+        '</div>';
+      card.querySelector('button').addEventListener('click', function () { self._click(); self._showroomAction(car.id); });
+      grid.appendChild(card);
+    });
+  };
+
+  App.prototype._showroomAction = function (carId) {
+    var car = Data.getCar(carId);
+    var owned = this.save.owned.indexOf(carId) !== -1;
+    if (owned) {
+      if (this.save.selectedId !== carId) {
+        this.save.selectedId = carId;
+        this.persist();
+        this.audio.coin();
+        this.toast('🏎️ «' + car.name + '» انتخاب شد');
+      }
+      this._updateSetupBar();
+      this._renderShowroom();
+      return;
+    }
+    if (this.save.coins < car.price) {
+      this.audio.denied();
+      this.toast('اعتبار کافی نیست! به ' + faNum(car.price - this.save.coins) + ' 🪙 دیگر نیاز دارید');
+      return;
+    }
+    this.save.coins -= car.price;
+    this.save.owned.push(carId);
+    this.save.selectedId = carId;
+    this.persist();
+    this.audio.coin();
+    this.toast('🎉 «' + car.name + '» خریداری و انتخاب شد!');
+    this._syncCoins();
+    this._updateSetupBar();
+    this._renderShowroom();
+  };
+
+  /* ============ رکوردها و آمار ============ */
+  App.prototype._renderRecords = function () {
+    var s = this.save;
+    var races = s.stats.races || 0, wins = s.stats.wins || 0;
+    var tiles = [
+      { icon: '🏁', num: faNum(races), label: 'مسابقهٔ انجام‌شده' },
+      { icon: '🏆', num: faNum(wins), label: 'پیروزی' },
+      { icon: '📈', num: races ? faNum(Math.round(wins / races * 100)) + '٪' : '—', label: 'درصد پیروزی' },
+      { icon: '🚗', num: faNum(s.owned.length) + ' / ۱۸', label: 'خودروهای کلکسیون' },
+      { icon: '💨', num: faNum(Math.floor(s.stats.driftBest || 0)), label: 'بهترین امتیاز دریفت' }
+    ];
+    var tilesEl = $('stat-tiles');
+    tilesEl.innerHTML = tiles.map(function (t) {
+      return '<div class="stat-tile"><div class="st-icon">' + t.icon + '</div><div class="st-num">' + t.num + '</div><div class="st-label">' + t.label + '</div></div>';
+    }).join('');
+    var self = this;
+    var renderBest = function (elId, map) {
+      var el = $(elId);
+      el.innerHTML = Data.TRACKS.map(function (t) {
+        var best = map[t.id];
+        return '<div class="best-row"><div class="best-track"><b>' + t.name + '</b><small>' + (t.lengthKm || '') + ' کیلومتر · ' + (t.env === 'city' ? 'شهری' : t.env === 'desert' ? 'کویری' : 'کوهستانی') + '</small></div><div class="best-time' + (best ? '' : ' none') + '">' + (best ? Race.formatTime(best) : 'هنوز ثبت نشده') + '</div></div>';
+      }).join('');
+    };
+    renderBest('best-laps', s.bestLaps || {});
+    renderBest('best-totals', s.bestTotal || {});
+  };
+
+  /* ============ دستاوردها ============ */
+  App.prototype._renderAchievements = function () {
+    var s = this.save;
+    var unlocked = 0;
+    var grid = $('achievements-grid');
+    grid.innerHTML = '';
+    ACHIEVEMENTS.forEach(function (a) {
+      var prog = Math.floor(a.prog(s));
+      var pct = clamp(prog / a.target * 100, 0, 100);
+      var done = prog >= a.target;
+      if (done) unlocked++;
+      var card = document.createElement('div');
+      card.className = 'ach-card' + (done ? ' unlocked' : '');
+      card.innerHTML =
+        '<div class="ach-icon">' + a.icon + '</div>' +
+        '<div class="ach-body">' +
+          '<div class="ach-name">' + a.name + '</div>' +
+          '<div class="ach-desc">' + a.desc + '</div>' +
+          '<div class="ach-bar"><i style="width:' + pct + '%"></i></div>' +
+          '<div class="ach-prog">' + (done ? '✅ تکمیل شد' : faNum(prog) + ' / ' + faNum(a.target)) + '</div>' +
+        '</div>';
+      grid.appendChild(card);
+    });
+    $('ach-count').textContent = faNum(unlocked) + ' / ' + faNum(ACHIEVEMENTS.length);
+    var pctTotal = clamp(unlocked / ACHIEVEMENTS.length * 100, 0, 100);
+    $('ach-percent').textContent = faNum(Math.round(pctTotal)) + '٪';
+    $('ach-ring').style.setProperty('--p', pctTotal);
   };
 
   /* ============ راه‌اندازی مسابقه ============ */
