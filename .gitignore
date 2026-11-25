@@ -2,3 +2,6 @@ node_modules/
 package.json
 package-lock.json
 unselected files/
+
+# generated single-file build (regenerate via bundle)
+/nitrocity-standalone.html
