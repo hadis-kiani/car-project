@@ -29,13 +29,20 @@
     { icon: '🏎️', name: 'کلکسیونر حرفه‌ای',  desc: '۸ ماشین در گاراژ خود داشته باشید',          target: 8,     prog: function (s) { return s.owned.length; } },
     { icon: '🐛', name: 'سوار بوگاتی',       desc: 'بوگاتی شیرون را به گاراژ اضافه کنید',       target: 1,     prog: function (s) { return s.owned.indexOf('chiron') !== -1 ? 1 : 0; } },
     { icon: '⚡', name: 'رکوردیست',          desc: 'حداقل یک رکورد بهترین دور ثبت کنید',        target: 1,     prog: function (s) { return Object.keys(s.bestLaps || {}).length; } },
-    { icon: '💎', name: 'استاد مسیرها',      desc: 'روی هر سه مسیر رکورد بهترین دور بزنید',     target: 3,     prog: function (s) { return Object.keys(s.bestLaps || {}).length; } }
+    { icon: '💎', name: 'استاد مسیرها',      desc: 'روی هر سه مسیر رکورد بهترین دور بزنید',     target: 3,     prog: function (s) { return Object.keys(s.bestLaps || {}).length; } },
+    { icon: '🎯', name: 'چالش‌باز',          desc: 'اولین چالش خود را تکمیل کنید',              target: 1,     prog: function (s) { return (s.challengesDoneIds || []).length; } },
+    { icon: '🏹', name: 'شکارچی هدف',        desc: 'سه چالش را تکمیل کنید',                    target: 3,     prog: function (s) { return (s.challengesDoneIds || []).length; } },
+    { icon: '👑', name: 'استاد نیترو سیتی',  desc: 'هر شش چالش را تکمیل کنید',                  target: 6,     prog: function (s) { return (s.challengesDoneIds || []).length; } },
+    { icon: '🚀', name: 'دیوانهٔ سرعت',      desc: 'به سرعت ۲۸۰ کیلومتر بر ساعت برسید',        target: 280,   prog: function (s) { return s.stats.topSpeedBest || 0; } }
   ];
 
   function App() {
     this.audio = new AudioMan.AudioEngine();
     this.save = Data.loadSave();
     this.sel = { trackId: Data.TRACKS[0].id, tod: this.save.settings.tod || 'night', laps: 2, difficulty: this.save.settings.difficulty || 'pro' };
+    this.mode = 'race';                 // race | challenge
+    this.selectedChallenge = (Data.CHALLENGES[0] || {}).id || null;
+    this.activeChallenge = null;        // چالشی که در حال اجراست
     this.currentRace = null;
     this.previewCarId = this.save.selectedId;
     this.garageReady = false;
@@ -194,6 +201,18 @@
   App.prototype._bindSetup = function () {
     var self = this;
     this._renderTrackCards();
+    /* سوییچ مسابقه / چالش */
+    var modeSwitch = $('mode-switch');
+    if (modeSwitch) {
+      modeSwitch.querySelectorAll('.mode-tab').forEach(function (tab) {
+        tab.addEventListener('click', function () {
+          self._click();
+          self._setMode(tab.getAttribute('data-mode'));
+        });
+      });
+    }
+    var chStart = $('btn-challenge-start');
+    if (chStart) chStart.addEventListener('click', function () { self._click(); self._launchRace(); });
     $('tod-list').innerHTML = Data.TOD.map(function (t) {
       return '<button class="choice-chip tod-chip" data-tod="' + t.id + '"><span class="tod-sky tod-' + t.id + '"></span>' + t.name + '</button>';
     }).join('');
@@ -322,6 +341,105 @@
     ctx.beginPath(); ctx.arc(s0[0], s0[1], 4.5, 0, Math.PI * 2); ctx.fill();
   };
 
+  /* ============ حالت مسابقه / چالش ============ */
+  App.prototype._setMode = function (mode) {
+    this.mode = mode === 'challenge' ? 'challenge' : 'race';
+    var tabs = $('mode-switch').querySelectorAll('.mode-tab');
+    tabs.forEach(function (t) { t.classList.toggle('selected', t.getAttribute('data-mode') === this.mode); }, this);
+    $('race-panel').classList.toggle('hidden', this.mode !== 'race');
+    $('challenge-panel').classList.toggle('hidden', this.mode !== 'challenge');
+    var title = $('setup-title');
+    if (title) title.textContent = this.mode === 'challenge' ? 'مسابقه و چالش — چالش‌ها' : 'انتخاب مسیر مسابقه';
+    $('btn-launch').classList.toggle('hidden', this.mode === 'challenge');
+    if (this.mode === 'challenge') this._renderChallenges();
+  };
+
+  App.prototype._challengeDone = function (id) {
+    return (this.save.challengesDoneIds || []).indexOf(id) !== -1;
+  };
+
+  /* بهترین نتیجهٔ ثبت‌شده برای هر چالش */
+  App.prototype._challengeBest = function (ch) {
+    var b = (this.save.challengeBest || {})[ch.id];
+    return b || null;
+  };
+
+  App.prototype._renderChallenges = function () {
+    var self = this;
+    var grid = $('challenge-grid');
+    if (!grid) return;
+    var doneCount = 0;
+    Data.CHALLENGES.forEach(function (c) { if (self._challengeDone(c.id)) doneCount++; });
+    $('challenge-done').textContent = faNum(doneCount) + ' / ' + faNum(Data.CHALLENGES.length);
+
+    grid.innerHTML = '';
+    Data.CHALLENGES.forEach(function (ch) {
+      var done = self._challengeDone(ch.id);
+      var diff = Data.DIFFICULTY.find(function (d) { return d.id === ch.difficulty; }) || Data.DIFFICULTY[1];
+      var best = self._challengeBest(ch);
+      var frac = best ? clamp(best.progress || 0, 0, 1) : 0;
+      var card = document.createElement('button');
+      card.className = 'challenge-card' + (done ? ' done' : '') + (self.selectedChallenge === ch.id ? ' selected' : '');
+      card.setAttribute('data-challenge', ch.id);
+      card.innerHTML =
+        '<div class="cc-top"><span class="cc-icon">' + ch.icon + '</span><span class="cc-name">' + ch.name + '</span></div>' +
+        '<div class="cc-goal">🎯 ' + self._challengeGoalText(ch) + '</div>' +
+        '<div class="cc-desc">' + ch.desc + '</div>' +
+        '<div class="cc-bar"><i style="width:' + Math.round(frac * 100) + '%"></i></div>' +
+        '<div class="cc-foot">' +
+          '<span class="cc-reward">🪙 ' + faNum(Math.round(ch.reward * Data.CHALLENGE_BONUS)) + '</span>' +
+          '<span class="cc-diff" style="color:' + (diff.id === 'legend' ? '#ff8ae2' : diff.id === 'pro' ? '#ffe45e' : '#6ee7b7') + '">' + diff.name + '</span>' +
+        '</div>';
+      card.addEventListener('click', function () {
+        self._click();
+        self.selectedChallenge = ch.id;
+        self._renderChallenges();
+      });
+      grid.appendChild(card);
+    });
+    this._renderChallengeDetail();
+  };
+
+  App.prototype._challengeGoalText = function (ch) {
+    switch (ch.type) {
+      case 'position': return 'رسیدن به رتبهٔ ' + faNum(ch.target) + ' یا بهتر';
+      case 'drift':    return faNum(ch.target) + ' امتیاز دریفت';
+      case 'lapTime':  return 'یک دور زیر ' + Race.formatTime(ch.target);
+      case 'topSpeed': return 'رسیدن به ' + faNum(ch.target) + ' کیلومتر بر ساعت';
+      case 'time':     return 'پایان مسابقه زیر ' + Race.formatTime(ch.target);
+      default: return '—';
+    }
+  };
+
+  App.prototype._renderChallengeDetail = function () {
+    var box = $('challenge-detail');
+    if (!box) return;
+    var ch = Data.getChallenge(this.selectedChallenge);
+    if (!ch) { box.classList.add('hidden'); return; }
+    box.classList.remove('hidden');
+    var diff = Data.DIFFICULTY.find(function (d) { return d.id === ch.difficulty; }) || Data.DIFFICULTY[1];
+    var tod = Data.TOD.find(function (t) { return t.id === ch.tod; }) || Data.TOD[0];
+    var done = this._challengeDone(ch.id);
+    var best = this._challengeBest(ch);
+    $('cd-icon').textContent = ch.icon;
+    $('cd-name').textContent = ch.name;
+    $('cd-desc').textContent = ch.desc;
+    $('cd-goal').textContent = this._challengeGoalText(ch);
+    $('cd-reward').textContent = faNum(Math.round(ch.reward * Data.CHALLENGE_BONUS));
+    $('cd-meta').textContent = '🏁 ' + ch.tracks.length + ' مسیر مجاز · ' + ch.laps + ' دور · سختی ' + diff.name + ' · ' + tod.name;
+    var frac = best ? clamp(best.progress || 0, 0, 1) : 0;
+    $('cd-bar-fill').style.width = Math.round(frac * 100) + '%';
+    $('cd-best').textContent = done
+      ? '✅ تکمیل شده — بهترین نتیجه: ' + (best && best.label ? best.label : '—')
+      : (best && best.label ? 'بهترین تلاش شما: ' + best.label : 'هنوز تلاشی ثبت نشده');
+    var btn = $('btn-challenge-start');
+    if (btn) {
+      btn.textContent = done ? 'تکرار چالش 🔁' : 'شروع چالش! 🎯';
+      btn.classList.toggle('btn-primary', !done);
+      btn.classList.toggle('btn-secondary', done);
+    }
+  };
+
   /* ============ گاراژ ============ */
   App.prototype._bindGarage = function () {
     var self = this;
@@ -427,6 +545,7 @@
     var save = this.save;
     return {
       body: car.body,
+      style: car.style,
       paint: Data.carPaint(save, car.id),
       finish: Data.carFinish(save, car.id),
       rim: Data.carRim(save, car.id),
@@ -791,6 +910,7 @@
       var owned = self.save.owned.indexOf(car.id) !== -1;
       var group = CarFactory.buildCar({
         body: car.body,
+        style: car.style,
         paint: owned ? Data.carPaint(self.save, car.id) : '#5b606e',
         finish: 'gloss',
         rim: 'sport', rimColorHex: '#d7d9de',
@@ -895,7 +1015,9 @@
       { icon: '🏆', num: faNum(wins), label: 'پیروزی' },
       { icon: '📈', num: races ? faNum(Math.round(wins / races * 100)) + '٪' : '—', label: 'درصد پیروزی' },
       { icon: '🚗', num: faNum(s.owned.length) + ' / ۱۸', label: 'خودروهای کلکسیون' },
-      { icon: '💨', num: faNum(Math.floor(s.stats.driftBest || 0)), label: 'بهترین امتیاز دریفت' }
+      { icon: '💨', num: faNum(Math.floor(s.stats.driftBest || 0)), label: 'بهترین امتیاز دریفت' },
+      { icon: '🎯', num: faNum((s.challengesDoneIds || []).length) + ' / ' + faNum(Data.CHALLENGES.length), label: 'چالش‌های تکمیل‌شده' },
+      { icon: '🚀', num: faNum(s.stats.topSpeedBest || 0) + ' km/h', label: 'رکورد سرعت' }
     ];
     var tilesEl = $('stat-tiles');
     tilesEl.innerHTML = tiles.map(function (t) {
@@ -957,16 +1079,32 @@
     $('hud-gear').textContent = '1';
     var touch = $('touch-controls');
     if (touch) touch.classList.toggle('on', ('ontouchstart' in window) || navigator.maxTouchPoints > 0);
-    this.save.settings.tod = this.sel.tod;
-    this.save.settings.difficulty = this.sel.difficulty;
+    /* ---------- تعیین زمان‌بندی بر اساس حالت ---------- */
+    var trackId = this.sel.trackId, tod = this.sel.tod, laps = this.sel.laps, difficulty = this.sel.difficulty;
+    this.activeChallenge = null;
+    if (this.mode === 'challenge') {
+      var ch = Data.getChallenge(this.selectedChallenge) || Data.CHALLENGES[0];
+      if (ch) {
+        this.activeChallenge = ch;
+        /* مسیر فعلی اگر مجاز باشد می‌ماند، وگرنه اولین مسیر مجاز */
+        if (ch.tracks.indexOf(trackId) === -1) trackId = ch.tracks[0];
+        tod = ch.tod || tod;
+        laps = ch.laps || laps;
+        difficulty = ch.difficulty || difficulty;
+      }
+    }
+    this._activeTrackId = trackId;
+    this.save.settings.tod = tod;
+    this.save.settings.difficulty = difficulty;
     this.persist();
 
     this.currentRace = new Race.RaceSession({
       container: $('race-container'),
-      trackId: this.sel.trackId,
-      tod: this.sel.tod,
-      laps: this.sel.laps,
-      difficulty: this.sel.difficulty,
+      trackId: trackId,
+      tod: tod,
+      laps: laps,
+      difficulty: difficulty,
+      challenge: this.activeChallenge,
       carId: this.save.selectedId,
       save: this.save,
       audio: this.audio,
@@ -1001,6 +1139,28 @@
     var prevTotal = save.bestTotal[result.trackId];
     if (!prevTotal || result.totalTime < prevTotal) save.bestTotal[result.trackId] = result.totalTime;
     if (result.driftScore > (save.stats.driftBest || 0)) save.stats.driftBest = result.driftScore;
+    if ((result.topSpeed || 0) > (save.stats.topSpeedBest || 0)) save.stats.topSpeedBest = result.topSpeed || 0;
+
+    /* ---------- ذخیرهٔ نتیجهٔ چالش ---------- */
+    if (result.challenge) {
+      var ch = result.challenge;
+      if (!save.challengesDoneIds) save.challengesDoneIds = [];
+      if (!save.challengeBest) save.challengeBest = {};
+      if (ch.passed && save.challengesDoneIds.indexOf(ch.id) === -1) {
+        save.challengesDoneIds.push(ch.id);
+        save.stats.challengesDone = save.challengesDoneIds.length;
+      }
+      var prevBest = save.challengeBest[ch.id];
+      var label = ch.type === 'topSpeed' ? (ch.value || 0) + ' km/h'
+                : ch.type === 'drift' ? faNum(Math.floor(result.driftScore)) + ' امتیاز'
+                : ch.type === 'lapTime' ? Race.formatTime(result.bestLap || 0)
+                : ch.type === 'time' ? Race.formatTime(result.totalTime)
+                : 'رتبهٔ ' + faNum(result.place);
+      if (!prevBest || (ch.progress || 0) >= (prevBest.progress || 0)) {
+        save.challengeBest[ch.id] = { progress: ch.progress || 0, label: label, passed: !!ch.passed };
+      }
+    }
+
     this.persist();
     this._syncCoins();
     this._syncRecordUI();
@@ -1022,7 +1182,37 @@
     $('result-total-time').textContent = Race.formatTime(result.totalTime);
     $('result-new-best').classList.toggle('hidden', !newBest);
 
+    /* ---------- بخش چالش در کارت نتایج ---------- */
+    this._renderResultChallenge(result);
+
     this.show('screen-results');
+  };
+
+  /* ============ نتایج چالش ============ */
+  App.prototype._renderResultChallenge = function (result) {
+    var banner = $('result-challenge-banner');
+    var row = $('result-challenge-row');
+    if (!banner || !row) return;
+    var ch = result.challenge;
+    if (!ch) {
+      banner.classList.add('hidden');
+      row.classList.add('hidden');
+      return;
+    }
+    banner.classList.remove('hidden', 'win', 'lose');
+    row.classList.remove('hidden');
+    banner.classList.add(ch.passed ? 'win' : 'lose');
+
+    $('rcb-icon').textContent = ch.passed ? '🏅' : ch.icon;
+    $('rcb-title').textContent = ch.passed ? '🎉 چالش تکمیل شد!' : 'هدف چالش محقق نشد';
+    $('rcb-desc').textContent = ch.goalText + ' — ' + (ch.passed ? 'عالی رانندگی کردی!' : 'دوباره تلاش کن، نزدیک بودی.');
+    var pct = Math.round(clamp(ch.progress || 0, 0, 1) * 100);
+    $('rcb-bar-fill').style.width = pct + '%';
+    $('rcb-progress').textContent = pct + '٪ از هدف · ' + (ch.statusText || '');
+
+    $('result-challenge-label').textContent = ch.passed ? '🏅 پاداش چالش «' + ch.name + '»' : 'پاداش چالش (تکمیل نشده)';
+    $('result-challenge-coins').textContent = faNum(ch.bonus || 0);
+    row.classList.toggle('failed', !ch.passed);
   };
 
   App.prototype._bindResults = function () {

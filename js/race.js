@@ -55,6 +55,10 @@
     this.hudTimer = 0;
     this.lastSeg = null;
     this.resultSent = false;
+    /* ---------- چالش ---------- */
+    this.challenge = opts.challenge || null;
+    this.maxKmh = 0;
+    this.challengeLiveDone = false;
     this._initScene();
     this._initPlayer();
     this._initAI();
@@ -108,7 +112,7 @@
     this.stats = Data.effectiveStats(car, save);
     var paint = Data.carPaint(save, car.id);
     this.player = CarFactory.buildCar({
-      body: car.body, paint: paint, finish: Data.carFinish(save, car.id),
+      body: car.body, style: car.style, paint: paint, finish: Data.carFinish(save, car.id),
       rim: Data.carRim(save, car.id), rimColorHex: (Data.RIM_COLORS.find(function (r) { return r.id === Data.carRimColor(save, car.id); }) || {}).hex || '#d7d9de',
       tire: Data.carTire(save, car.id), glow: (Data.GLOWS.find(function (g) { return g.id === Data.carGlow(save, car.id) && g.hex; }) || {}).hex || null
     });
@@ -168,7 +172,7 @@
     for (var n = 0; n < count; n++) {
       var cDef = pool[n % pool.length];
       var paint = AI_PAINTS[(n * 3 + 1) % AI_PAINTS.length];
-      var mesh = CarFactory.buildCar({ body: cDef.body, paint: paint, finish: n % 3 === 0 ? 'pearl' : 'gloss', rim: n % 2 ? 'sport' : 'mesh', rimColorHex: '#d7d9de', tire: 'sport', glow: null });
+      var mesh = CarFactory.buildCar({ body: cDef.body, style: cDef.style, paint: paint, finish: n % 3 === 0 ? 'pearl' : 'gloss', rim: n % 2 ? 'sport' : 'mesh', rimColorHex: '#d7d9de', tire: 'sport', glow: null });
       var slot = n + 1; // جایگاه ۱..count در گرید (۰ = بازیکن)
       var grid = this.world.startGrid[Math.min(slot, this.world.startGrid.length - 1)];
       mesh.rotation.order = 'YXZ';
@@ -347,6 +351,8 @@
 
   RaceSession.prototype._setState = function (s) {
     this.state = s;
+    var hc = document.getElementById('hud-challenge');
+    if (hc) hc.classList.toggle('hidden', !this.challenge || s === 'finished');
     if (s === 'countdown') {
       var el = document.getElementById('countdown-overlay');
       if (el) el.classList.add('visible');
@@ -523,6 +529,10 @@
     /* فرمان داخل کابین */
     if (ud.steeringWheel) ud.steeringWheel.rotation.z = -this.steerVis * 1.05;
 
+    /* -------- ردگیری بیشترین سرعت (برای چالش سرعت) -------- */
+    var kmhNow = Math.abs(this.sf) * 3.6;
+    if (kmhNow > this.maxKmh) this.maxKmh = kmhNow;
+
     /* -------- دریفت -------- */
     var drifting = Math.abs(this.sl) > 2.7 && Math.abs(this.sf) > 9;
     if (drifting && this.state === 'racing') {
@@ -641,6 +651,68 @@
     for (var s = 0; s < ud.steers.length; s++) ud.steers[s].rotation.y = clamp(curvature * turnSign, -0.4, 0.4) * 0.8;
   };
 
+  /* ============================================================
+     چالش‌ها: محاسبهٔ پیشرفت هدف
+     ============================================================ */
+  RaceSession.prototype._challengeProgress = function (place) {
+    var ch = this.challenge;
+    if (!ch) return 0;
+    var v = 0;
+    if (ch.type === 'position') {
+      /* هرچه رتبه بهتر، پیشرفت بیشتر */
+      v = Math.max(0, 8 - (place || 8)) / 7;
+      if ((place || 8) <= ch.target) v = 1;
+    } else if (ch.type === 'drift') {
+      v = this.driftScore / ch.target;
+    } else if (ch.type === 'lapTime') {
+      /* تا وقتی دوری زده نشده، بر اساس بهترین دور */
+      if (this.bestLap < Infinity) v = this.bestLap <= ch.target ? 1 : clamp(ch.target / this.bestLap, 0, 0.99);
+      else v = 0;
+    } else if (ch.type === 'topSpeed') {
+      v = this.maxKmh / ch.target;
+    } else if (ch.type === 'time') {
+      if (this.finished && this.racingTime) v = this.racingTime <= ch.target ? 1 : clamp(ch.target / this.racingTime, 0, 0.99);
+      else v = this.racingTime > 0 ? clamp((this.lap - 1 + clamp(this.progress / this.world.length, 0, 1)) / this.laps, 0, 0.98) : 0;
+    }
+    return clamp(v, 0, 1);
+  };
+
+  RaceSession.prototype._challengeText = function () {
+    var ch = this.challenge;
+    if (!ch) return '';
+    switch (ch.type) {
+      case 'position': return 'رتبهٔ ' + ch.target + ' یا بهتر';
+      case 'drift':    return ch.target.toLocaleString('fa-IR') + ' امتیاز دریفت';
+      case 'lapTime':  return 'دور زیر ' + formatTime(ch.target);
+      case 'topSpeed': return 'سرعت ' + ch.target + ' km/h';
+      case 'time':     return 'پایان زیر ' + formatTime(ch.target);
+      default: return '—';
+    }
+  };
+
+  RaceSession.prototype._challengeStatusText = function (place, frac) {
+    var ch = this.challenge;
+    if (!ch) return '';
+    if (ch.type === 'drift')   return 'دریفت فعلی: ' + Math.floor(this.driftScore).toLocaleString('fa-IR');
+    if (ch.type === 'topSpeed')return 'بیشترین سرعت: ' + Math.round(this.maxKmh) + ' km/h';
+    if (ch.type === 'lapTime') return this.bestLap < Infinity ? 'بهترین دور: ' + formatTime(this.bestLap) : 'هنوز دوری کامل نشده';
+    if (ch.type === 'position')return 'جایگاه فعلی: ' + (place || 1);
+    if (ch.type === 'time')    return 'زمان: ' + formatTime(this.racingTime);
+    return '';
+  };
+
+  /* آیا هدف چالش برآورده شده؟ (در پایان مسابقه) */
+  RaceSession.prototype._challengePassed = function (place) {
+    var ch = this.challenge;
+    if (!ch) return false;
+    if (ch.type === 'position') return place <= ch.target;
+    if (ch.type === 'drift')    return this.driftScore >= ch.target;
+    if (ch.type === 'lapTime')  return this.bestLap < Infinity && this.bestLap <= ch.target;
+    if (ch.type === 'topSpeed') return this.maxKmh >= ch.target;
+    if (ch.type === 'time')     return this.racingTime <= ch.target;
+    return false;
+  };
+
   RaceSession.prototype._onLapComplete = function () {
     var lapTime = this.lapStart === 0 ? this.racingTime : this.racingTime - this.lapStart;
     this.lapTimes.push(lapTime);
@@ -671,9 +743,32 @@
     var scale = (this.track.rewardBase || 2500) / 2500;
     var placeReward = Math.round((Data.PLACE_REWARDS[place - 1] || 300) * this.difficulty.reward * scale / 10) * 10;
     var coins = placeReward + driftBonus;
+    /* ---------- چالش ---------- */
+    var chPassed = this._challengePassed(place);
+    var chFrac = this._challengeProgress(place);
+    var challenge = null;
+    if (this.challenge) {
+      var bonus = chPassed ? Math.round(this.challenge.reward * (Data.CHALLENGE_BONUS || 1.8)) : 0;
+      coins += bonus;
+      challenge = {
+        id: this.challenge.id,
+        name: this.challenge.name,
+        icon: this.challenge.icon,
+        type: this.challenge.type,
+        target: this.challenge.target,
+        goalText: this._challengeText(),
+        passed: chPassed,
+        progress: chFrac,
+        bonus: bonus,
+        statusText: this._challengeStatusText(place, chFrac),
+        value: this.challenge.type === 'topSpeed' ? Math.round(this.maxKmh) : null
+      };
+    }
     this.opts.callbacks.onFinish({
       place: place,
       coins: coins,
+      challenge: challenge,
+      topSpeed: Math.round(this.maxKmh),
       placeReward: placeReward,
       driftBonus: driftBonus,
       driftScore: Math.floor(this.driftScore),
@@ -790,6 +885,34 @@
       }
     }
     this._drawMinimap();
+
+    /* ---------- کارت هدف چالش ---------- */
+    if (this.challenge) {
+      var ch = this.challenge;
+      var cName = document.getElementById('hc-name');
+      var cGoal = document.getElementById('hc-goal');
+      var cIcon = document.getElementById('hc-icon');
+      var cBar = document.getElementById('hc-bar-fill');
+      var cStat = document.getElementById('hc-status');
+      var card = document.getElementById('hud-challenge');
+      if (cIcon) cIcon.textContent = ch.icon;
+      if (cName) cName.textContent = ch.name;
+      if (cGoal) cGoal.textContent = this._challengeText();
+      var frac = this._challengeProgress(place);
+      if (cBar) cBar.style.width = Math.round(frac * 100) + '%';
+      if (cStat) cStat.textContent = this._challengeStatusText(place, frac);
+      if (card) {
+        card.classList.toggle('done', frac >= 1);
+        card.classList.toggle('failing', frac < 0.34 && this.racingTime > 4);
+      }
+      /* اعلام زندهٔ تکمیل هدف (در حین مسابقه) */
+      if (this.state === 'racing' && !this.challengeLiveDone &&
+          (ch.type === 'drift' || ch.type === 'topSpeed' || ch.type === 'lapTime') && frac >= 1) {
+        this.challengeLiveDone = true;
+        this._flashMsg('🎯 هدف چالش محقق شد!', 1.7);
+        this.audio.win();
+      }
+    }
   };
 
   RaceSession.prototype._drawMinimap = function () {

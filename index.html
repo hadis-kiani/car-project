@@ -15,8 +15,38 @@
 <body>
 <div id="app">
 
+  <!-- ============ صفحهٔ بارگذاری (نوار پیشرفت ورود به بازی) ============ -->
+  <section id="screen-loader" class="screen visible">
+    <div class="loader-bg"></div>
+    <div class="loader-shade"></div>
+    <div class="loader-content">
+      <div class="loader-logo">نیترو <em>سیتی</em></div>
+      <div class="loader-sub">NITRO CITY · پادشاه خیابان‌ها شو</div>
+
+      <div class="loader-bar-wrap">
+        <div class="loader-bar-info">
+          <span id="loader-status">در حال آماده‌سازی موتور سه‌بعدی…</span>
+          <span id="loader-percent">۰٪</span>
+        </div>
+        <div class="loader-bar"><i id="loader-fill"></i><span class="loader-bar-glow"></span></div>
+      </div>
+
+      <div class="loader-scene">
+        <!-- صحنهٔ سه‌بعدی ماشین هنگام ورود -->
+        <canvas id="loader-canvas"></canvas>
+      </div>
+
+      <button id="btn-enter" class="btn btn-primary btn-enter" disabled>
+        <span class="btn-icon">🏁</span>
+        <span class="btn-text">ورود به بازی<small>آماده‌سازی کامل شد — بزن بریم!</small></span>
+      </button>
+      <div id="btn-enter-skip" class="loader-skip hidden">رد کردن و ورود سریع ←</div>
+      <div class="loader-tip" id="loader-tip">💡 نکته: با Space می‌توانید دریفت بزنید و امتیاز بگیرید.</div>
+    </div>
+  </section>
+
   <!-- ============ صفحهٔ اصلی ============ -->
-  <section id="screen-menu" class="screen visible">
+  <section id="screen-menu" class="screen">
     <div class="menu-bg"></div>
     <div class="menu-vignette"></div>
 
@@ -42,29 +72,30 @@
       <div class="tagline"><span class="neon-flicker">— پادشاه خیابان‌ها شو —</span></div>
 
       <div class="menu-buttons">
-        <button id="btn-start-race" class="btn btn-primary btn-huge">
-          <span class="btn-icon">🏁</span>
-          <span class="btn-text">شروع مسابقه<small>سه مسیر · سه زمان روز · رقابت با ۷ حریف هوشمند</small></span>
-        </button>
-        <div class="menu-grid">
-          <button id="btn-garage" class="menu-tile tile-cyan">
-            <span class="tile-icon">🔧</span>
-            <span class="tile-text">گاراژ<small>شخصی‌سازی، ارتقا و زیرنور</small></span>
-          </button>
-          <button id="btn-showroom" class="menu-tile tile-pink">
+        <div class="menu-grid main-grid">
+          <button id="btn-showroom" class="menu-tile tile-pink tile-main">
             <span class="tile-icon">🏎️</span>
-            <span class="tile-text">نمایشگاه<small>کلکسیون ۱۸ ماشین؛ خرید و انتخاب</small></span>
+            <span class="tile-text">انتخاب خودرو<small>کلکسیون ۱۸ ماشین؛ خرید و انتخاب</small></span>
+            <span class="tile-badge">۱۸</span>
           </button>
-          <button id="btn-records" class="menu-tile tile-gold">
-            <span class="tile-icon">🏆</span>
-            <span class="tile-text">رکوردها<small>بهترین زمان‌ها، بردها و آمار</small></span>
+          <button id="btn-garage" class="menu-tile tile-cyan tile-main">
+            <span class="tile-icon">🔧</span>
+            <span class="tile-text">گاراژ<small>رنگ، رینگ، لاستیک و ارتقا</small></span>
           </button>
-          <button id="btn-achievements" class="menu-tile tile-violet">
-            <span class="tile-icon">🎖️</span>
-            <span class="tile-text">دستاوردها<small>مأموریت‌ها، کوله‌بار افتخار</small></span>
+          <button id="btn-start-race" class="menu-tile tile-lime tile-main">
+            <span class="tile-icon">🏁</span>
+            <span class="tile-text">مسابقه و چالش<small>سه مسیر · ۶ چالش · ۷ حریف هوشمند</small></span>
+            <span class="tile-badge tile-badge-rate">RFC</span>
+          </button>
+          <button id="btn-settings" class="menu-tile tile-violet tile-main">
+            <span class="tile-icon">⚙️</span>
+            <span class="tile-text">تنظیمات<small>گرافیک، دوربین، صدا و پیشرفت</small></span>
           </button>
         </div>
-        <button id="btn-settings" class="btn btn-ghost">⚙️ &nbsp;تنظیمات</button>
+        <div class="menu-secondary">
+          <button id="btn-records" class="mini-tile">🏆 رکوردها</button>
+          <button id="btn-achievements" class="mini-tile">🎖️ دستاوردها</button>
+        </div>
       </div>
     </div>
 
@@ -77,37 +108,73 @@
         <span><kbd>C</kbd> دوربین</span>·
         <span><kbd>Esc</kbd> توقف</span>
       </div>
-      <div class="menu-version">نسخهٔ ۱.۰ — موتور سه‌بعدی اختصاصی</div>
+      <div class="menu-version">نسخهٔ ۱.۱ — موتور سه‌بعدی اختصاصی · چالش‌ها</div>
     </footer>
   </section>
 
-  <!-- ============ انتخاب مسیر و مسابقه ============ -->
+  <!-- ============ انتخاب مسیر و مسابقه / چالش ============ -->
   <section id="screen-setup" class="screen">
     <header class="subtopbar">
       <button class="icon-btn back-btn" data-goto="menu" aria-label="بازگشت">←</button>
-      <h2>انتخاب مسیر مسابقه</h2>
+      <h2 id="setup-title">انتخاب مسیر مسابقه</h2>
       <div class="pill pill-coins">🪙 <span id="setup-coins">۰</span></div>
     </header>
 
     <div class="setup-scroll">
-      <div id="track-list" class="track-list"></div>
+      <div class="mode-switch" id="mode-switch">
+        <button class="mode-tab selected" data-mode="race">🏁 مسابقهٔ آزاد</button>
+        <button class="mode-tab" data-mode="challenge">🎯 چالش‌ها</button>
+      </div>
 
-      <div class="setup-options">
-        <div class="option-group">
-          <div class="option-title">🕒 زمان روز</div>
-          <div id="tod-list" class="choice-row"></div>
+      <!-- انتخاب چالش -->
+      <div id="challenge-panel" class="challenge-panel hidden">
+        <div class="challenge-head">
+          <div>
+            <h3 class="panel-title">🎯 چالش‌های نیترو سیتی</h3>
+            <p class="panel-sub">هر چالش یک هدف مشخص دارد؛ با تکمیل آن پاداش ویژه بگیرید. هدف‌ها بر اساس ماشین و سطح شما تنظیم می‌شوند.</p>
+          </div>
+          <div id="challenge-done" class="challenge-done">۰ / ۰</div>
         </div>
-        <div class="option-group">
-          <div class="option-title">🔄 تعداد دور</div>
-          <div id="laps-group" class="choice-row">
-            <button class="choice-chip" data-laps="1">۱ دور</button>
-            <button class="choice-chip selected" data-laps="2">۲ دور</button>
-            <button class="choice-chip" data-laps="3">۳ دور</button>
+        <div id="challenge-grid" class="challenge-grid"></div>
+        <div id="challenge-detail" class="challenge-detail hidden">
+          <div class="cd-left">
+            <div class="cd-title"><span id="cd-icon">🎯</span> <b id="cd-name">—</b></div>
+            <div class="cd-desc" id="cd-desc">—</div>
+            <div class="cd-goal-wrap">
+              <div class="cd-goal-row"><span>هدف</span><b id="cd-goal">—</b></div>
+              <div class="cd-bar"><i id="cd-bar-fill"></i></div>
+              <div class="cd-best" id="cd-best">هنوز تلاشی ثبت نشده</div>
+            </div>
+          </div>
+          <div class="cd-right">
+            <div class="cd-reward">🪙 <b id="cd-reward">۰</b><small> پاداش</small></div>
+            <div class="cd-meta" id="cd-meta">—</div>
+            <button id="btn-challenge-start" class="btn btn-primary btn-launch">شروع چالش! 🎯</button>
           </div>
         </div>
-        <div class="option-group">
-          <div class="option-title">🎚️ سختی</div>
-          <div id="diff-group" class="choice-row"></div>
+      </div>
+
+      <!-- حالت مسابقهٔ آزاد -->
+      <div id="race-panel">
+        <div id="track-list" class="track-list"></div>
+
+        <div class="setup-options">
+          <div class="option-group">
+            <div class="option-title">🕒 زمان روز</div>
+            <div id="tod-list" class="choice-row"></div>
+          </div>
+          <div class="option-group">
+            <div class="option-title">🔄 تعداد دور</div>
+            <div id="laps-group" class="choice-row">
+              <button class="choice-chip" data-laps="1">۱ دور</button>
+              <button class="choice-chip selected" data-laps="2">۲ دور</button>
+              <button class="choice-chip" data-laps="3">۳ دور</button>
+            </div>
+          </div>
+          <div class="option-group">
+            <div class="option-title">🎚️ سختی</div>
+            <div id="diff-group" class="choice-row"></div>
+          </div>
         </div>
       </div>
 
@@ -272,7 +339,18 @@
       <div class="result-breakdown">
         <div class="result-row"><span>جایزهٔ رتبه <b id="result-place">۱</b>ام</span><span class="coin">🪙 <b id="result-place-coins">۰</b></span></div>
         <div class="result-row"><span>پاداش دریفت (<b id="result-drift-score">۰</b> امتیاز)</span><span class="coin">🪙 <b id="result-drift-coins">۰</b></span></div>
+        <div id="result-challenge-row" class="result-row hidden"><span id="result-challenge-label">پاداش چالش</span><span class="coin">🪙 <b id="result-challenge-coins">۰</b></span></div>
         <div class="result-row total"><span>مجموع دریافتی</span><span class="coin">🪙 <b id="result-total-coins">۰</b></span></div>
+      </div>
+
+      <div id="result-challenge-banner" class="result-challenge-banner hidden">
+        <div class="rcb-icon" id="rcb-icon">🎯</div>
+        <div class="rcb-body">
+          <div class="rcb-title" id="rcb-title">چالش تکمیل شد!</div>
+          <div class="rcb-desc" id="rcb-desc">—</div>
+          <div class="rcb-bar"><i id="rcb-bar-fill"></i></div>
+          <div class="rcb-progress" id="rcb-progress">—</div>
+        </div>
       </div>
 
       <div class="result-records">
@@ -326,6 +404,15 @@
       </div>
 
       <canvas id="minimap" width="170" height="170" aria-hidden="true"></canvas>
+
+      <!-- کارت هدف چالش -->
+      <div id="hud-challenge" class="hud-challenge hidden">
+        <div class="hc-top"><span id="hc-icon">🎯</span> <b id="hc-name">چالش</b></div>
+        <div class="hc-row"><span>هدف</span><b id="hc-goal">—</b></div>
+        <div class="hc-bar"><i id="hc-bar-fill"></i></div>
+        <div class="hc-status" id="hc-status">—</div>
+      </div>
+
       <div id="hud-msg" class="hud-msg"></div>
       <div id="hud-drift" class="hud-drift">DRIFT +0</div>
     </div>
@@ -396,6 +483,7 @@
 <script src="js/world.js"></script>
 <script src="js/race.js"></script>
 <script src="js/ui.js"></script>
+<script src="js/loader.js"></script>
 <script src="js/main.js"></script>
 </body>
 </html>

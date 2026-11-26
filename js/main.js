@@ -1,5 +1,6 @@
 /* ============================================================
    NIRO CITY — نقطه ورود بازی
+   boot → loader (نوار پیشرفت) → App
    ============================================================ */
 (function (root) {
   'use strict';
@@ -18,16 +19,47 @@
     } catch (e) { return false; }
   }
 
-  function boot() {
-    if (root.nitroApp) return; // محافظت در برابر اجرای دوباره
-    if (!root.THREE) { showFatal('کتابخانهٔ سه‌بعدی بارگذاری نشد. اتصال اینترنت یا فایل‌های بازی را بررسی کنید.'); return; }
-    if (!webglAvailable()) { showFatal('مرورگر شما از WebGL پشتیبانی نمی‌کند. لطفاً Chrome یا Firefox جدید استفاده کنید.'); return; }
+  function hideLoader() {
+    var el = document.getElementById('screen-loader');
+    if (el) { el.classList.remove('visible'); el.classList.remove('loader-leaving'); }
+  }
+
+  function startApp() {
+    if (root.nitroApp) return;
+    hideLoader();
     try {
       root.nitroApp = new root.NitroUI.App();
     } catch (err) {
       console.error(err);
       showFatal('خطا در راه‌اندازی بازی:<br>' + (err && err.message ? err.message : err));
     }
+  }
+
+  function boot() {
+    if (root.nitroApp || root.nitroLoader) return; // محافظت در برابر اجرای دوباره
+    if (!root.THREE) { showFatal('کتابخانهٔ سه‌بعدی بارگذاری نشد. اتصال اینترنت یا فایل‌های بازی را بررسی کنید.'); return; }
+
+    /* محیط تست: بدون صفحهٔ بارگذاری */
+    if (root.__NITRO_SKIP_LOADER__) { startApp(); return; }
+
+    if (!root.NitroLoader || !root.NitroCarFactory) { startApp(); return; }
+
+    /* اگر به هر دلیلی موتور سه‌بعدی ساخته نشد، کمتر از ۸ ثانیه وارد نشویم */
+    setTimeout(function () {
+      if (!root.nitroApp && root.nitroLoader && root.nitroLoader.done === false) {
+        root.nitroLoader.target = 100;
+      }
+    }, 8000);
+
+    root.nitroLoader = new root.NitroLoader.Loader(function () {
+      root.nitroLoader = null;
+      startApp();
+      if (root.nitroApp) {
+        root.nitroApp.show('screen-menu');
+        root.nitroApp.audio.startMenuPad();
+      }
+    });
+    root.nitroLoader.init();
   }
 
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot);

@@ -116,6 +116,53 @@
       desc:'رکورددار نظری ۵۳۱ کیلومتر بر ساعت؛ موسیقی مکانیکی کامل سوئد.' }
   ];
 
+
+  /* ---------- استایل ظاهری مخصوص هر مدل ----------
+     L/W: ضریب طول و عرض · roof/belt: تغییر ارتفاع · wr/ww: اندازهٔ رینگ
+     wing: 'gt' | 'lip' | 'none' · stripe: نوار مسابقه‌ای · accent: رنگ تریم
+     number: شمارهٔ مسابقه‌ای روی در · scoop/roofScoop: ورودی هوا
+     exhaust: تعداد خروجی اگزوز · wb: جابه‌جایی فاصلهٔ محوری */
+  var CAR_STYLES = {
+    mx5:       { L: 0.94, W: 0.97, roof: -0.035, wr: 0.97, wb: -0.05, wing: 'none' },
+    supra:     { L: 1.00, W: 1.00, wing: 'lip', accent: '#c9ced6', stripe: false },
+    mustang:   { L: 1.00, W: 1.02, roof: 0.005, wr: 1.04, wb: 0.08, wing: 'lip',
+                 accent: '#c1121f', stripe: true, scoop: true, exhaust: 2 },
+    hellcat:   { L: 1.01, W: 1.03, roof: 0.01, wr: 1.05, wb: 0.09, wing: 'lip',
+                 accent: '#ff2d2d', stripe: true, scoop: true, exhaust: 4 },
+    gtr:       { L: 0.99, W: 1.03, roof: -0.015, wr: 1.02, wb: 0.06, wing: 'gt',
+                 accent: '#d0d5dd', scoop: true, exhaust: 4, roofScoop: true },
+    corvette:  { L: 1.01, W: 1.03, roof: -0.02, wr: 1.03, wb: 0.07, wing: 'gt',
+                 accent: '#1d6fd1', scoop: true, exhaust: 4 },
+    etype:     { L: 1.02, W: 0.98, roof: 0.02, wr: 0.98, wb: 0.10, wing: 'none',
+                 accent: '#a8a29a' },
+    porsche930:{ L: 0.96, W: 1.02, roof: 0.015, wr: 1.03, wb: -0.06, wing: 'lip',
+                 accent: '#191b20' },
+    db11:      { L: 1.02, W: 1.02, roof: -0.01, wr: 1.02, wb: 0.07, wing: 'none',
+                 accent: '#b4b9c2' },
+    gt3rs:     { L: 1.00, W: 1.06, roof: -0.02, wr: 1.05, wb: 0.05, wing: 'gt',
+                 accent: '#a3e635', stripe: true, number: 911, scoop: true,
+                 exhaust: 2, roofScoop: true },
+    continental:{ L: 1.03, W: 1.02, roof: 0.015, wr: 1.03, wb: 0.10, wing: 'lip',
+                 accent: '#c9a227' },
+    '720s':    { L: 0.98, W: 1.03, roof: -0.04, wr: 1.02, wb: 0.04, wing: 'gt',
+                 accent: '#ff7a00', scoop: true, exhaust: 2 },
+    f8:        { L: 1.02, W: 1.05, roof: -0.015, wr: 1.05, wb: 0.06, wing: 'gt',
+                 accent: '#c1121f', scoop: true, exhaust: 2 },
+    fordgt:    { L: 1.04, W: 1.05, roof: -0.055, belt: 0.01, wr: 1.05, wb: 0.12,
+                 wing: 'gt', accent: '#1d6fd1', scoop: true, exhaust: 2, roofScoop: true },
+    huracan:   { L: 1.01, W: 1.05, roof: -0.025, wr: 1.05, wb: 0.06, wing: 'gt',
+                 accent: '#ffb703', scoop: true, exhaust: 4 },
+    gto250:    { L: 0.99, W: 0.97, roof: 0.015, wr: 0.97, wb: 0.09, wing: 'none',
+                 accent: '#c1121f', number: 25, stripe: false },
+    chiron:    { L: 1.02, W: 1.05, roof: -0.01, wr: 1.05, wb: 0.10, wing: 'gt',
+                 accent: '#c9a227', scoop: true, exhaust: 4 },
+    jesko:     { L: 1.03, W: 1.05, roof: -0.015, wr: 1.05, wb: 0.11, wing: 'gt',
+                 accent: '#e879f9', scoop: true, exhaust: 4, roofScoop: true }
+  };
+
+  /* سبک بدنه را به هر ماشین نرمال می‌کنیم */
+  CARS.forEach(function (c) { c.style = CAR_STYLES[c.id] || null; });
+
   var CLASS_LABELS = {
     sports:  { name: 'اسپرت',     color: '#22d3ee' },
     muscle:  { name: 'ماسل',      color: '#fb7185' },
@@ -201,6 +248,37 @@
     { id: 'legend', name: 'افسانه‌ای', skill: 0.90, reward: 1.35, aiCount: 7 }
   ];
 
+  /* ---------- چالش‌ها ---------- */
+  /* هر چالش یک نوع هدف دارد:
+     position → رسیدن به رتبهٔ target یا بهتر
+     lapTime  → زدن یک دور زیر target ثانیه
+     drift    → جمع‌کردن امتیاز دریفت بیشتر از target
+     topSpeed → رسیدن به سرعت target کیلومتر بر ساعت
+     time     → تمام‌کردن مسابقه زیر target ثانیه */
+  var CHALLENGES = [
+    { id:'c1', name:'آزمون راننده', icon:'🌱', type:'position', target:1, laps:1, difficulty:'easy',
+      tracks:['neoncity'], tod:'day', reward:4000,
+      desc:'در یک دور خیابان نئون، هر هفت رقیب را پشت سر بگذار و اول شوی.' },
+    { id:'c2', name:'شکارچی دریفت', icon:'💨', type:'drift', target:2500, laps:2, difficulty:'pro',
+      tracks:['neoncity','sunset'], tod:'night', reward:6000,
+      desc:'در دو دور، با ترمز دستی به شکل پیوسته دریفت کن و ۲٬۵۰۰ امتیاز دریفت بگیر.' },
+    { id:'c3', name:'زیر یک دقیقه', icon:'⏱️', type:'lapTime', target:62, laps:2, difficulty:'pro',
+      tracks:['neoncity','alborz'], tod:'sunset', reward:7000,
+      desc:'یک دور کامل را زیر ۶۲ ثانیه بزن. ترمز دیرتر، گاز زودتر.' },
+    { id:'c4', name:'ثرسیاب', icon:'🚀', type:'topSpeed', target:300, laps:1, difficulty:'pro',
+      tracks:['sunset'], tod:'day', reward:6500,
+      desc:'روی بزرگراه غروب، پدال گاز را تا ته فشار بده و به ۳۰۰ کیلومتر بر ساعت برس.' },
+    { id:'c5', name:'شبح کوهستان', icon:'🐺', type:'position', target:1, laps:2, difficulty:'legend',
+      tracks:['alborz'], tod:'night', reward:15000,
+      desc:'در دو دور گردنهٔ البرز و در سطح افسانه‌ای، اول شو. بدون اشتباه.' },
+    { id:'c6', name:'استاد زمان', icon:'👑', type:'time', target:150, laps:2, difficulty:'legend',
+      tracks:['neoncity','sunset','alborz'], tod:'sunset', reward:20000,
+      desc:'دو دور را در سطح افسانه‌ای و در مجموع زیر ۱۵۰ ثانیه تمام کن.' }
+  ];
+  var CHALLENGE_BONUS = 1.8;   /* ضریب پاداش تکمیل چالش */
+
+  function getChallenge(id) { return CHALLENGES.find(function (c) { return c.id === id; }) || null; }
+
   /* ---------- ذخیرهٔ بازی ---------- */
   var SAVE_KEY = 'nitrocity_save_v1';
   var DEFAULT_SAVE = {
@@ -212,7 +290,9 @@
     upgrades: {},            // carId -> {engine,tires,brakes}
     bestLaps: {},            // trackId -> seconds
     bestTotal: {},
-    stats: { wins: 0, races: 0, driftBest: 0 },
+    stats: { wins: 0, races: 0, driftBest: 0, topSpeedBest: 0, challengesDone: 0 },
+    challengesDoneIds: [],   // آرایهٔ شناسهٔ چالش‌های تکمیل‌شده
+    challengeBest: {},       // challengeId -> { progress, label, passed }
     settings: { tod: 'night', difficulty: 'pro', quality: 'high', camera: 'chase', muted: false }
   };
 
@@ -270,9 +350,10 @@
 
   root.NitroData = {
     PAINTS, FINISHES, RIMS, RIM_COLORS, TIRES, GLOWS,
-    CARS, CLASS_LABELS, RARITY_LABELS,
+    CARS, CAR_STYLES, CLASS_LABELS, RARITY_LABELS,
     TRACKS, TOD, UPGRADES, UPGRADE_MAX, upgradeCost,
     PLACE_REWARDS, DIFFICULTY,
+    CHALLENGES, CHALLENGE_BONUS, getChallenge,
     SAVE_KEY, DEFAULT_SAVE, loadSave, saveSave, resetSave,
     getCar, carPaint, carFinish, carRim, carRimColor, carTire, carGlow, carUpgrades, effectiveStats
   };

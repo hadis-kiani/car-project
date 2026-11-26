@@ -116,12 +116,12 @@ kbd{background:#1c2233;border:1px solid #33405e;border-bottom-width:3px;border-r
 @keyframes neonFlicker{0%,100%{opacity:1}92%{opacity:1}93%{opacity:.35}94%{opacity:1}96%{opacity:.5}97%{opacity:1}}
 
 .menu-buttons{display:flex;flex-direction:column;gap:14px;margin-top:34px;align-items:flex-start}
-#btn-settings{align-self:flex-start;padding:10px 26px;border-radius:12px}
-/* دکمهٔ اصلی با تپش نور + آیکون روی چیپ */
-#btn-start-race{position:relative;overflow:hidden;animation:ctaPulse 2.8s ease-in-out infinite}
-#btn-start-race::before{content:'';position:absolute;inset:0;background:linear-gradient(110deg,transparent 20%,rgba(255,255,255,.35) 42%,rgba(255,255,255,.55) 50%,rgba(255,255,255,.35) 58%,transparent 80%);transform:translateX(-120%);animation:ctaShine 3.6s ease-in-out infinite;pointer-events:none}
-@keyframes ctaShine{0%,60%{transform:translateX(-120%)}100%{transform:translateX(120%)}}
-@keyframes ctaPulse{0%,100%{box-shadow:0 10px 42px rgba(0,229,255,.35),0 0 0 1px rgba(0,229,255,.35)}50%{box-shadow:0 10px 64px rgba(0,229,255,.55),0 0 0 2px rgba(0,229,255,.6)}}
+/* تایل ویژهٔ «مسابقه و چالش» — درخشش و برق کشیده */
+#btn-start-race.menu-tile{overflow:hidden;animation:tilePulse 3.2s ease-in-out infinite}
+#btn-start-race.menu-tile::before{content:'';position:absolute;inset:0;background:linear-gradient(110deg,transparent 25%,rgba(255,255,255,.14) 42%,rgba(255,255,255,.26) 50%,rgba(255,255,255,.14) 58%,transparent 75%);transform:translateX(-120%);animation:ctaShine 4.2s ease-in-out infinite;pointer-events:none;z-index:1}
+#btn-start-race.menu-tile>*{position:relative;z-index:2}
+@keyframes ctaShine{0%,55%{transform:translateX(-120%)}100%{transform:translateX(120%)}}
+@keyframes tilePulse{0%,100%{box-shadow:0 8px 26px rgba(163,230,53,.16),inset 0 0 18px rgba(163,230,53,.06)}50%{box-shadow:0 12px 44px rgba(163,230,53,.4),inset 0 0 26px rgba(163,230,53,.13)}}
 .btn-icon{display:inline-flex;align-items:center;justify-content:center;width:46px;height:46px;border-radius:13px;background:rgba(0,0,0,.28);font-size:1.5rem;flex-shrink:0;filter:drop-shadow(0 2px 6px rgba(0,0,0,.4))}
 .btn-huge{display:flex;gap:14px;align-items:center}
 
@@ -483,3 +483,151 @@ kbd{background:#1c2233;border:1px solid #33405e;border-bottom-width:3px;border-r
   .result-buttons{flex-direction:column}
   .result-buttons .btn{width:100%}
 }
+
+/* ============================================================
+   صفحهٔ بارگذاری — نوار پیشرفت ورود به بازی
+   ============================================================ */
+#screen-loader{display:flex;align-items:center;justify-content:center;overflow:hidden;background:#05070d}
+.loader-bg{position:absolute;inset:0;background:url('../assets/hero.jpg') center 34%/cover no-repeat;transform:scale(1.08);animation:heroDrift 34s ease-in-out infinite alternate;filter:saturate(1.15)}
+.loader-shade{position:absolute;inset:0;background:
+  radial-gradient(90% 70% at 50% 45%,rgba(5,7,13,.18) 0%,rgba(5,7,13,.72) 62%,rgba(5,7,13,.96) 100%),
+  linear-gradient(0deg,rgba(5,7,13,.96),rgba(5,7,13,.3) 55%,rgba(5,7,13,.85))}
+.loader-content{position:relative;z-index:2;display:flex;flex-direction:column;align-items:center;text-align:center;gap:16px;padding:26px;width:min(760px,94vw)}
+.loader-logo{font-size:clamp(2.6rem,7vw,4.6rem);font-weight:900;line-height:1.05;color:#fff;text-shadow:0 6px 40px rgba(0,0,0,.85),0 0 80px rgba(0,229,255,.4)}
+.loader-logo em{font-style:normal;background:linear-gradient(180deg,#a5f3ff,#00e5ff 45%,#0077ff);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;filter:drop-shadow(0 4px 24px rgba(0,229,255,.55))}
+.loader-sub{font-size:clamp(.72rem,1.5vw,1rem);letter-spacing:.24em;color:#9fd8ea;font-weight:700;opacity:.9;margin-top:-6px}
+
+.loader-bar-wrap{width:100%;max-width:520px;margin-top:6px}
+.loader-bar-info{display:flex;justify-content:space-between;align-items:center;font-size:.8rem;font-weight:700;color:#bfeaff;margin-bottom:8px}
+#loader-percent{color:var(--cyan);font-size:1rem;font-variant-numeric:tabular-nums}
+.loader-bar{position:relative;height:12px;border-radius:999px;background:rgba(255,255,255,.08);border:1px solid rgba(0,229,255,.25);overflow:hidden;box-shadow:inset 0 2px 8px rgba(0,0,0,.6)}
+#loader-fill{position:absolute;top:0;bottom:0;right:0;width:0%;border-radius:999px;background:linear-gradient(90deg,#0077ff,#00e5ff 55%,#7ff0ff);box-shadow:0 0 18px rgba(0,229,255,.85),inset 0 1px 0 rgba(255,255,255,.7);transition:width .18s ease-out}
+#loader-fill::after{content:'';position:absolute;inset:0;background:repeating-linear-gradient(115deg,transparent 0 10px,rgba(255,255,255,.28) 10px 16px);animation:loaderStripe .8s linear infinite}
+@keyframes loaderStripe{from{transform:translateX(0)}to{transform:translateX(-26px)}}
+.loader-bar-glow{position:absolute;top:-8px;bottom:-8px;width:70px;background:radial-gradient(circle,rgba(0,229,255,.5),transparent 70%);right:0;animation:loaderGlow 1.6s ease-in-out infinite}
+@keyframes loaderGlow{0%,100%{opacity:.35}50%{opacity:.9}}
+
+.loader-scene{position:relative;width:100%;height:clamp(150px,26vh,240px);margin:-4px 0 -6px}
+#loader-canvas{width:100%;height:100%;display:block;filter:drop-shadow(0 24px 40px rgba(0,0,0,.6))}
+
+.btn-enter{padding:12px 26px;min-width:min(330px,86vw);justify-content:center;opacity:.55;cursor:not-allowed;transition:opacity .3s,transform .15s,box-shadow .2s}
+.btn-enter.ready{opacity:1;cursor:pointer;animation:enterPulse 2s ease-in-out infinite}
+@keyframes enterPulse{0%,100%{box-shadow:0 10px 34px rgba(0,229,255,.32),inset 0 1px 0 rgba(255,255,255,.6)}50%{box-shadow:0 12px 52px rgba(0,229,255,.7),inset 0 1px 0 rgba(255,255,255,.6)}}
+.loader-skip{font-size:.8rem;color:var(--muted);cursor:pointer;text-decoration:underline;text-underline-offset:3px}
+.loader-skip:hover{color:var(--cyan)}
+.loader-tip{font-size:.76rem;color:#8b93a7;max-width:460px;line-height:1.9;margin-top:2px;transition:opacity .4s}
+
+/* ============================================================
+   منوی اصلی — چهار منوی اصلی
+   ============================================================ */
+.main-grid{grid-template-columns:repeat(2,minmax(178px,1fr));gap:12px;width:100%;max-width:520px}
+.menu-tile.tile-main{flex-direction:column;align-items:flex-start;gap:8px;padding:16px 16px 15px;min-height:104px;justify-content:center}
+.menu-tile.tile-main .tile-icon{font-size:1.9rem;filter:drop-shadow(0 4px 12px rgba(0,0,0,.6))}
+.menu-tile.tile-main .tile-text{font-size:1.08rem;gap:3px}
+.menu-tile.tile-main .tile-text small{font-size:.7rem;line-height:1.7;opacity:.72;white-space:normal}
+.tile-badge{position:absolute;top:10px;left:10px;background:rgba(0,229,255,.16);border:1px solid rgba(0,229,255,.45);color:#a5f3ff;font-size:.66rem;font-weight:800;border-radius:999px;padding:2px 9px;letter-spacing:.4px}
+.tile-badge-rate{background:rgba(255,228,94,.14);border-color:rgba(255,228,94,.45);color:var(--yellow)}
+.tile-lime{border-color:rgba(163,230,53,.32)}
+.tile-lime:hover{box-shadow:0 10px 34px rgba(163,230,53,.26),inset 0 0 24px rgba(163,230,53,.1)}
+.tile-violet{border-color:rgba(167,139,250,.3)}
+.tile-violet:hover{box-shadow:0 10px 34px rgba(167,139,250,.26),inset 0 0 24px rgba(167,139,250,.12)}
+.tile-gold{border-color:rgba(255,228,94,.28)}
+.tile-gold:hover{box-shadow:0 10px 34px rgba(255,228,94,.24),inset 0 0 24px rgba(255,228,94,.1)}
+.tile-pink{border-color:rgba(255,47,214,.3)}
+.menu-secondary{display:flex;gap:10px;flex-wrap:wrap;margin-top:2px}
+.mini-tile{font-family:var(--font);background:rgba(255,255,255,.045);border:1px solid rgba(255,255,255,.12);color:var(--muted);border-radius:12px;padding:9px 16px;font-size:.82rem;font-weight:700;cursor:pointer;transition:.18s}
+.mini-tile:hover{color:var(--text);border-color:rgba(0,229,255,.4);background:rgba(0,229,255,.07)}
+
+/* ============================================================
+   سوییچ حالت مسابقه / چالش
+   ============================================================ */
+.mode-switch{display:inline-flex;gap:6px;padding:5px;border-radius:14px;background:rgba(12,16,26,.8);border:1px solid rgba(255,255,255,.1);margin-bottom:14px;backdrop-filter:blur(10px)}
+.mode-tab{font-family:var(--font);border:none;background:transparent;color:var(--muted);font-weight:800;font-size:.9rem;padding:9px 20px;border-radius:10px;cursor:pointer;transition:.18s}
+.mode-tab:hover{color:var(--text)}
+.mode-tab.selected{background:linear-gradient(140deg,rgba(0,229,255,.24),rgba(0,119,255,.16));color:#a5f3ff;box-shadow:0 0 18px rgba(0,229,255,.25)}
+
+.challenge-panel{display:flex;flex-direction:column;gap:16px}
+.challenge-head{display:flex;justify-content:space-between;align-items:flex-start;gap:14px;flex-wrap:wrap}
+.challenge-done{font-weight:900;font-size:1.05rem;color:var(--yellow);background:rgba(255,228,94,.1);border:1px solid rgba(255,228,94,.35);border-radius:999px;padding:7px 18px;white-space:nowrap}
+.challenge-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(228px,1fr));gap:12px}
+.challenge-card{position:relative;text-align:right;font-family:var(--font);color:var(--text);background:var(--panel);border:1px solid var(--panel-border);border-radius:16px;padding:16px 16px 14px;cursor:pointer;transition:.2s;display:flex;flex-direction:column;gap:8px;backdrop-filter:blur(10px);overflow:hidden}
+.challenge-card:hover{transform:translateY(-3px);border-color:var(--panel-border-strong);box-shadow:0 16px 44px rgba(0,229,255,.14)}
+.challenge-card.selected{border-color:var(--cyan);box-shadow:0 0 0 2px var(--cyan),0 18px 50px rgba(0,229,255,.24)}
+.challenge-card.done{border-color:rgba(52,211,153,.5);background:linear-gradient(160deg,rgba(52,211,153,.09),rgba(15,19,32,.8))}
+.challenge-card.done::after{content:'✓ تکمیل';position:absolute;top:12px;left:12px;background:rgba(52,211,153,.2);border:1px solid rgba(52,211,153,.55);color:#6ee7b7;font-size:.66rem;font-weight:800;border-radius:999px;padding:2px 9px}
+.cc-top{display:flex;align-items:center;gap:9px}
+.cc-icon{font-size:1.55rem;line-height:1;filter:drop-shadow(0 4px 10px rgba(0,0,0,.55))}
+.cc-name{font-weight:800;font-size:1rem;line-height:1.35}
+.cc-goal{font-size:.78rem;color:#a5f3ff;font-weight:700}
+.cc-desc{font-size:.72rem;color:var(--muted);line-height:1.85;min-height:2.6em}
+.cc-foot{display:flex;justify-content:space-between;align-items:center;font-size:.7rem;color:var(--muted);border-top:1px solid rgba(255,255,255,.07);padding-top:8px;margin-top:2px}
+.cc-reward{color:var(--yellow);font-weight:800}
+.cc-diff{font-weight:700}
+.cc-bar{height:5px;border-radius:99px;background:rgba(255,255,255,.09);overflow:hidden}
+.cc-bar>i{display:block;height:100%;border-radius:99px;background:linear-gradient(90deg,#00b3ff,#00e5ff);box-shadow:0 0 10px rgba(0,229,255,.6);transition:width .4s}
+.challenge-card.done .cc-bar>i{background:linear-gradient(90deg,#10b981,#6ee7b7);box-shadow:0 0 10px rgba(52,211,153,.6)}
+
+.challenge-detail{display:flex;justify-content:space-between;gap:20px;flex-wrap:wrap;background:linear-gradient(150deg,rgba(0,229,255,.07),rgba(15,19,32,.85));border:1px solid var(--panel-border-strong);border-radius:18px;padding:18px 20px;backdrop-filter:blur(12px)}
+.cd-left{flex:1;min-width:260px;display:flex;flex-direction:column;gap:10px}
+.cd-title{font-size:1.15rem;display:flex;align-items:center;gap:8px}
+.cd-desc{font-size:.82rem;color:var(--muted);line-height:1.9}
+.cd-goal-wrap{display:flex;flex-direction:column;gap:6px}
+.cd-goal-row{display:flex;justify-content:space-between;font-size:.8rem;font-weight:700;color:#bfeaff}
+.cd-bar{height:8px;border-radius:99px;background:rgba(255,255,255,.09);overflow:hidden}
+.cd-bar>i{display:block;height:100%;width:0%;border-radius:99px;background:linear-gradient(90deg,#00b3ff,#00e5ff,#7ff0ff);box-shadow:0 0 12px rgba(0,229,255,.7);transition:width .5s}
+.cd-best{font-size:.72rem;color:var(--muted)}
+.cd-right{display:flex;flex-direction:column;align-items:flex-start;justify-content:center;gap:10px;min-width:210px}
+.cd-reward{font-size:1.3rem;font-weight:900;color:var(--yellow)}
+.cd-reward b{font-size:1.5rem}
+.cd-reward small{font-size:.72rem;font-weight:700;color:var(--muted)}
+.cd-meta{font-size:.72rem;color:var(--muted);line-height:1.9}
+.cd-right .btn-launch{width:100%}
+
+/* ============================================================
+   HUD هدف چالش
+   ============================================================ */
+.hud-challenge{position:absolute;top:96px;right:16px;width:238px;background:rgba(6,9,17,.72);backdrop-filter:blur(12px);border:1px solid rgba(0,229,255,.28);border-radius:16px;padding:11px 14px 12px;display:flex;flex-direction:column;gap:7px;box-shadow:0 10px 34px rgba(0,0,0,.45)}
+.hc-top{font-size:.84rem;font-weight:800;display:flex;align-items:center;gap:7px;color:#bfeaff}
+.hc-row{display:flex;justify-content:space-between;font-size:.74rem;color:var(--muted);font-weight:700}
+.hc-row b{color:#fff}
+.hc-bar{height:6px;border-radius:99px;background:rgba(255,255,255,.1);overflow:hidden}
+.hc-bar>i{display:block;height:100%;width:0%;border-radius:99px;background:linear-gradient(90deg,#00b3ff,#00e5ff);box-shadow:0 0 10px rgba(0,229,255,.7);transition:width .25s}
+.hc-status{font-size:.7rem;color:var(--muted);font-weight:700}
+.hud-challenge.failing{border-color:rgba(255,93,93,.5)}
+.hud-challenge.failing .hc-bar>i{background:linear-gradient(90deg,#ff5d5d,#ff9b9b);box-shadow:0 0 10px rgba(255,93,93,.7)}
+.hud-challenge.done{border-color:rgba(52,211,153,.6);box-shadow:0 0 30px rgba(52,211,153,.3)}
+.hud-challenge.done .hc-status{color:#6ee7b7}
+
+/* ============================================================
+   نتایج چالش
+   ============================================================ */
+.result-challenge-banner{display:flex;align-items:center;gap:16px;background:linear-gradient(150deg,rgba(0,229,255,.1),rgba(15,19,32,.7));border:1px solid rgba(0,229,255,.35);border-radius:16px;padding:14px 18px;text-align:right;margin:4px 0 8px}
+.result-challenge-banner.win{background:linear-gradient(150deg,rgba(52,211,153,.14),rgba(15,19,32,.7));border-color:rgba(52,211,153,.5)}
+.result-challenge-banner.lose{background:linear-gradient(150deg,rgba(255,93,93,.1),rgba(15,19,32,.7));border-color:rgba(255,93,93,.4)}
+.rcb-icon{font-size:2.2rem;line-height:1;flex-shrink:0}
+.rcb-body{flex:1;display:flex;flex-direction:column;gap:5px;min-width:0}
+.rcb-title{font-weight:900;font-size:1.02rem}
+.rcb-desc{font-size:.74rem;color:var(--muted);line-height:1.8}
+.rcb-bar{height:6px;border-radius:99px;background:rgba(255,255,255,.1);overflow:hidden;margin-top:2px}
+.rcb-bar>i{display:block;height:100%;width:0%;border-radius:99px;background:linear-gradient(90deg,#00b3ff,#00e5ff);transition:width .6s}
+.result-challenge-banner.win .rcb-bar>i{background:linear-gradient(90deg,#10b981,#6ee7b7)}
+.rcb-progress{font-size:.7rem;color:var(--muted);font-weight:700}
+
+@media (max-width:720px){
+  .main-grid{grid-template-columns:1fr 1fr;gap:9px}
+  .menu-tile.tile-main{min-height:92px;padding:12px}
+  .menu-tile.tile-main .tile-text{font-size:.94rem}
+  .menu-tile.tile-main .tile-text small{display:none}
+  .hud-challenge{top:auto;bottom:170px;right:10px;width:172px;padding:8px 11px}
+  .hc-top{font-size:.74rem}
+  .challenge-detail{padding:14px}
+  .cd-right{width:100%;min-width:0}
+  .loader-scene{height:clamp(120px,20vh,170px)}
+  .menu-secondary{justify-content:center}
+}
+
+/* خروج صفحهٔ بارگذاری */
+#screen-loader.loader-leaving{animation:loaderOut .62s ease forwards}
+@keyframes loaderOut{0%{opacity:1;transform:scale(1)}100%{opacity:0;transform:scale(1.06)}}
+#screen-loader.loader-leaving .loader-content{animation:loaderContentOut .5s ease forwards}
+@keyframes loaderContentOut{0%{opacity:1;transform:translateY(0)}100%{opacity:0;transform:translateY(-18px)}}

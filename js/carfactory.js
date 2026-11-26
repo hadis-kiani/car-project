@@ -18,6 +18,37 @@
     luxury:  { L: 4.95, W: 1.95, belt: 0.795, roof: 1.16,  wr: 0.34,  ww: 0.28, wing: false, sideIntake: false, classic:false, chrome: true }
   };
 
+  /* ---------- تغییرات ظاهری مخصوص هر مدل ----------
+     هر مدل با تنظیم طول، عرض، ارتفاع سقف، اندازهٔ رینگ، نوع بال و
+     جزئیات (نوار مسابقه‌ای، شماره، اگزوز چهارگانه، هاوداسکوپ)
+     سیلوئت جداگانه‌ای می‌گیرد، حتی وقتی کلاس بدنه یکی است. */
+  var STYLE_KEYS = ['L', 'W', 'roof', 'belt', 'wr', 'ww', 'wing', 'ducktail', 'gtWing', 'wb', 'stripe', 'accent', 'number', 'exhaust', 'scoop', 'roofScoop', 'splitter'];
+
+  function deriveBody(base, st) {
+    if (!st) return base;
+    var b = {}, k;
+    for (k in base) b[k] = base[k];
+    if (typeof st.L === 'number') b.L = base.L * st.L;
+    if (typeof st.W === 'number') b.W = base.W * st.W;
+    if (typeof st.roof === 'number') b.roof = base.roof + st.roof;
+    if (typeof st.belt === 'number') b.belt = base.belt + st.belt;
+    if (typeof st.wr === 'number') b.wr = base.wr * st.wr;
+    if (typeof st.ww === 'number') b.ww = base.ww * st.ww;
+    if (st.wing === 'gt')   { b.wing = true;  b.gtWing = true;  b.ducktail = false; }
+    if (st.wing === 'lip')  { b.wing = false; b.gtWing = false; b.ducktail = true;  }
+    if (st.wing === 'none') { b.wing = false; b.gtWing = false; b.ducktail = false; }
+    /* متغیرهای ظاهری که در توابع شکل استفاده نمی‌شوند */
+    b._accent    = st.accent || null;
+    b._stripe    = !!st.stripe;
+    b._number    = st.number || null;
+    b._exhaust   = st.exhaust || 2;
+    b._scoop     = !!st.scoop;
+    b._roofScoop = !!st.roofScoop;
+    b._splitter  = st.splitter !== false;
+    b._wb        = (typeof st.wb === 'number') ? st.wb : 0;
+    return b;
+  }
+
   function paintMaterial(hex, finish) {
     var m;
     if (finish === 'matte') {
@@ -325,7 +356,7 @@
      opts: { body, paint, finish, rim, rimColor, tire, glow, brakeLights }
      ============================================================ */
   function buildCar(opts) {
-    var b = BODY[opts.body] || BODY.sport;
+    var b = deriveBody(BODY[opts.body] || BODY.sport, opts.style);
     var L = b.L, W = b.W;
     var group = new THREE.Group();
     group.name = 'car';
@@ -543,11 +574,12 @@
     rimGeo.rotateZ(Math.PI / 2);
 
     var wheels = [], steers = [];
+    var wb = b._wb || 0;   /* جابه‌جایی فاصلهٔ محوری برای هر مدل */
     var wheelOffsets = [
-      { x:  (W/2 - wheelW/2 + 0.035), z:  (L/2 - wr - 0.42), steer: true  },
-      { x: -(W/2 - wheelW/2 + 0.035), z:  (L/2 - wr - 0.42), steer: true  },
-      { x:  (W/2 - wheelW/2 + 0.035), z: -(L/2 - wr - 0.42), steer: false },
-      { x: -(W/2 - wheelW/2 + 0.035), z: -(L/2 - wr - 0.42), steer: false }
+      { x:  (W/2 - wheelW/2 + 0.035), z:  (L/2 - wr - 0.42 + wb), steer: true  },
+      { x: -(W/2 - wheelW/2 + 0.035), z:  (L/2 - wr - 0.42 + wb), steer: true  },
+      { x:  (W/2 - wheelW/2 + 0.035), z: -(L/2 - wr - 0.42 - wb), steer: false },
+      { x: -(W/2 - wheelW/2 + 0.035), z: -(L/2 - wr - 0.42 - wb), steer: false }
     ];
     wheelOffsets.forEach(function (off) {
       var steerGroup = new THREE.Group();
@@ -574,6 +606,106 @@
       glowPlane.rotation.x = -Math.PI / 2;
       glowPlane.position.y = 0.055;
       group.add(glowPlane);
+    }
+
+    /* ============================================================
+       جزئیات ظاهری مخصوص مدل — نوار مسابقه‌ای، شماره، هاوداسکوپ،
+       اگزوز چهارگانه، تریم رنگی و روکش سقف
+       ============================================================ */
+    /* ---- نوارهای مسابقه‌ای دوقلو روی کاپوت و سقف ---- */
+    if (b._stripe) {
+      var stripeW = 0.13;
+      var sMat = new THREE.MeshStandardMaterial({
+        color: b._accent || 0xf2f4f8, metalness: 0.5, roughness: 0.34, envMapIntensity: 1.1
+      });
+      [-1, 1].forEach(function (sgn) {
+        var strip = new THREE.Mesh(new THREE.BoxGeometry(stripeW, 0.016, L * 0.60), sMat);
+        strip.position.set(sgn * 0.17, b.belt + 0.012, L * 0.06);
+        strip.rotation.x = 0.0;
+        group.add(strip);
+        var roofStrip = new THREE.Mesh(new THREE.BoxGeometry(stripeW, 0.012, L * 0.20), sMat);
+        roofStrip.position.set(sgn * 0.17, b.roof + 0.012, -L * 0.10);
+        group.add(roofStrip);
+      });
+    }
+
+    /* ---- شمارهٔ مسابقه‌ای روی درها (تکسچر Canvas) ---- */
+    if (b._number) {
+      var numTex = (function (num) {
+        var c = document.createElement('canvas'); c.width = c.height = 128;
+        var g2 = c.getContext('2d');
+        g2.fillStyle = '#f5f6f8';
+        g2.beginPath(); g2.arc(64, 64, 60, 0, Math.PI * 2); g2.fill();
+        g2.strokeStyle = '#16181d'; g2.lineWidth = 7;
+        g2.beginPath(); g2.arc(64, 64, 55, 0, Math.PI * 2); g2.stroke();
+        g2.fillStyle = '#14161a';
+        g2.font = 'bold 74px Tahoma, Arial'; g2.textAlign = 'center'; g2.textBaseline = 'middle';
+        g2.fillText(String(num), 64, 68);
+        var t = new THREE.CanvasTexture(c); t.encoding = THREE.sRGBEncoding; return t;
+      })(b._number);
+      var numMat = new THREE.MeshStandardMaterial({ map: numTex, transparent: true, roughness: 0.55, metalness: 0.1 });
+      [-1, 1].forEach(function (sgn) {
+        var decal = new THREE.Mesh(new THREE.PlaneGeometry(0.42, 0.42), numMat);
+        decal.position.set(sgn * (W / 2 + 0.012), b.belt - 0.055, L * 0.10);
+        decal.rotation.y = sgn > 0 ? Math.PI / 2 : -Math.PI / 2;
+        group.add(decal);
+      });
+    }
+
+    /* ---- هاوداسکوپ (ورودی هوای کاپوت) ---- */
+    if (b._scoop) {
+      var scoop = new THREE.Mesh(new THREE.BoxGeometry(W * 0.34, 0.075, 0.42), carbonMat);
+      scoop.position.set(0, b.belt + 0.035, L * 0.235);
+      scoop.rotation.x = -0.055;
+      group.add(scoop);
+      var scoopMouth = new THREE.Mesh(new THREE.BoxGeometry(W * 0.28, 0.05, 0.03), trimMat);
+      scoopMouth.position.set(0, b.belt + 0.042, L * 0.235 + 0.20);
+      group.add(scoopMouth);
+    }
+
+    /* ---- ورودی هوای سقف ---- */
+    if (b._roofScoop) {
+      var rs = new THREE.Mesh(new THREE.BoxGeometry(0.34, 0.06, 0.30), paintMat);
+      rs.position.set(0, b.roof + 0.055, L * 0.02);
+      group.add(rs);
+    }
+
+    /* ---- اگزوز چهارگانه برای مدل‌های قدرتمند ---- */
+    if (b._exhaust >= 4 && !b.classic) {
+      [-0.075, -0.025, 0.025, 0.075].forEach(function (ox) {
+        var qe = new THREE.Mesh(new THREE.CylinderGeometry(0.028, 0.028, 0.10, 12), CHROME());
+        qe.rotation.x = Math.PI / 2;
+        qe.position.set(ox, 0.175, -L / 2 - 0.055);
+        group.add(qe);
+      });
+    }
+
+    /* ---- خط تزئینی رنگی (accent) روی بدنه ---- */
+    if (b._accent) {
+      var accMat = new THREE.MeshStandardMaterial({
+        color: b._accent, metalness: 0.75, roughness: 0.22, envMapIntensity: 1.4,
+        emissive: b._accent, emissiveIntensity: 0.12
+      });
+      [-1, 1].forEach(function (sgn) {
+        /* نوار باریک روی خط کمر */
+        var beltLine = new THREE.Mesh(new THREE.BoxGeometry(0.014, 0.022, L * 0.52), accMat);
+        beltLine.position.set(sgn * (W / 2 + 0.002), b.belt - 0.135, -L * 0.02);
+        group.add(beltLine);
+      });
+      /* نوار جلوپنجره */
+      if (!b.classic) {
+        var gLine = new THREE.Mesh(new THREE.BoxGeometry(W * 0.40, 0.016, 0.02), accMat);
+        gLine.position.set(0, b.belt - 0.205, L / 2 - 0.012);
+        group.add(gLine);
+      }
+    }
+
+    /* ---- سپلیتر جلو حذف‌شدنی ---- */
+    if (!b._splitter && !b.classic) {
+      group.children = group.children.filter(function (c) {
+        return !(c.geometry && c.geometry.parameters && c.geometry.parameters.depth === 0.24 &&
+                 Math.abs(c.position.z - (L / 2 - 0.05)) < 0.001);
+      });
     }
 
     /* ---- کابین داخلی ساده برای نمای داخل ---- */
