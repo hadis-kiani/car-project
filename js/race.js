@@ -258,6 +258,8 @@
     bindHold('touch-gas', 'gas');
     bindHold('touch-brake', 'brake');
     bindHold('touch-drift', 'drift');
+    bindHold('pedal-gas', 'gas');
+    bindHold('pedal-brake', 'brake');
 
     var q = function (id, fn) { var el = document.getElementById(id); if (el) el.addEventListener('click', fn); };
     q('btn-pause', function () { self.togglePause(); });
@@ -361,6 +363,10 @@
     var k = this.keys, tc = this.touch;
     var throttle = (raceActive && (k['arrowup'] || k['w'] || tc.gas)) ? 1 : 0;
     var brake    = (raceActive && (k['arrowdown'] || k['s'] || tc.brake)) ? 1 : 0;
+    var pGas = document.getElementById('pedal-gas');
+    var pBrake = document.getElementById('pedal-brake');
+    if (pGas) pGas.classList.toggle('active', throttle > 0);
+    if (pBrake) pBrake.classList.toggle('active', brake > 0);
     /* left = steering toward the driver's left; with yaw measured from +Z and the car facing +sin/+cos(yaw),
        left must INCREASE yaw. Positive steerIn turns the car left. */
     var steerIn  = 0;

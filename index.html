@@ -15,8 +15,28 @@
 <body>
 <div id="app">
 
+  <!-- ============ صفحهٔ ورود و نوار پیشرفت ============ -->
+  <section id="screen-loading" class="screen visible">
+    <div class="menu-bg"></div>
+    <div class="menu-vignette"></div>
+    <div class="loading-center">
+      <div class="loading-badge">🏁 NITRO CITY 3D</div>
+      <div class="game-logo">نیترو <em>سیتی</em></div>
+      <div class="loading-subtitle">موتور سه‌بعدی مسابقه‌ای · ۱۸ خودروی واقعی</div>
+      <div class="loading-bar-wrap">
+        <div class="loading-bar-track">
+          <div id="loading-bar-fill" class="loading-bar-fill"></div>
+        </div>
+        <div class="loading-meta">
+          <span id="loading-status">در حال راه‌اندازی موتور سه‌بعدی...</span>
+          <span id="loading-percent">۰٪</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
   <!-- ============ صفحهٔ اصلی ============ -->
-  <section id="screen-menu" class="screen visible">
+  <section id="screen-menu" class="screen">
     <div class="menu-bg"></div>
     <div class="menu-vignette"></div>
 
@@ -44,16 +64,16 @@
       <div class="menu-buttons">
         <button id="btn-start-race" class="btn btn-primary btn-huge">
           <span class="btn-icon">🏁</span>
-          <span class="btn-text">شروع مسابقه<small>سه مسیر · سه زمان روز · رقابت با ۷ حریف هوشمند</small></span>
+          <span class="btn-text">مسابقه و چالش<small>سه مسیر · چالش‌های ویژه · رقابت با ۷ حریف هوشمند</small></span>
         </button>
         <div class="menu-grid">
           <button id="btn-garage" class="menu-tile tile-cyan">
             <span class="tile-icon">🔧</span>
-            <span class="tile-text">گاراژ<small>شخصی‌سازی، ارتقا و زیرنور</small></span>
+            <span class="tile-text">گاراژ<small>تغییر رنگ، رینگ، ارتقا و زیرنور</small></span>
           </button>
           <button id="btn-showroom" class="menu-tile tile-pink">
             <span class="tile-icon">🏎️</span>
-            <span class="tile-text">نمایشگاه<small>کلکسیون ۱۸ ماشین؛ خرید و انتخاب</small></span>
+            <span class="tile-text">انتخاب خودرو<small>کلکسیون ۱۸ ماشین واقعی؛ خرید و انتخاب</small></span>
           </button>
           <button id="btn-records" class="menu-tile tile-gold">
             <span class="tile-icon">🏆</span>
@@ -328,6 +348,19 @@
       <canvas id="minimap" width="170" height="170" aria-hidden="true"></canvas>
       <div id="hud-msg" class="hud-msg"></div>
       <div id="hud-drift" class="hud-drift">DRIFT +0</div>
+
+      <div class="hud-pedals" aria-label="پدال گاز و ترمز">
+        <button id="pedal-brake" class="pedal-btn pedal-brake" type="button">
+          <span class="pedal-icon">🛑</span>
+          <span class="pedal-label">ترمز</span>
+          <span class="pedal-key">S / ▼</span>
+        </button>
+        <button id="pedal-gas" class="pedal-btn pedal-gas" type="button">
+          <span class="pedal-icon">⚡</span>
+          <span class="pedal-label">گاز</span>
+          <span class="pedal-key">W / ▲</span>
+        </button>
+      </div>
     </div>
 
     <div id="countdown-overlay"><div id="countdown-num">3</div></div>
