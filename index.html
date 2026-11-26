@@ -14,6 +14,15 @@
 </head>
 <body>
 <div id="app">
+  <div id="loading-screen">
+    <div class="loading-inner">
+      <div class="loading-logo">نیترو <em>سیتی</em></div>
+      <div class="loading-sub">در حال آماده‌سازی ماشین و شهر…</div>
+      <div class="loading-bar-wrap"><div id="loading-bar"></div></div>
+      <div id="loading-text">۰٪</div>
+      <div class="loading-tip">💡 نکته: در گاراژ می‌توانید رنگ، رینگ و چراغ‌ها را تغییر دهید</div>
+    </div>
+  </div>
 
   <!-- ============ صفحهٔ اصلی ============ -->
   <section id="screen-menu" class="screen visible">
@@ -42,7 +51,11 @@
       <div class="tagline"><span class="neon-flicker">— پادشاه خیابان‌ها شو —</span></div>
 
       <div class="menu-buttons">
-        <button id="btn-start-race" class="btn btn-primary btn-huge">
+        <button id="btn-free-drive" class="btn btn-primary btn-huge">
+          <span class="btn-icon">🚗</span>
+          <span class="btn-text">رانندگی آزاد<small>شهر، بزرگراه و کوهستان · آفتابی، شب و بارانی</small></span>
+        </button>
+        <button id="btn-start-race" class="btn btn-secondary btn-huge">
           <span class="btn-icon">🏁</span>
           <span class="btn-text">شروع مسابقه<small>سه مسیر · سه زمان روز · رقابت با ۷ حریف هوشمند</small></span>
         </button>
@@ -96,6 +109,10 @@
         <div class="option-group">
           <div class="option-title">🕒 زمان روز</div>
           <div id="tod-list" class="choice-row"></div>
+        </div>
+        <div class="option-group">
+          <div class="option-title">🌦️ آب‌وهوا (رانندگی آزاد)</div>
+          <div id="weather-list" class="choice-row"></div>
         </div>
         <div class="option-group">
           <div class="option-title">🔄 تعداد دور</div>
@@ -189,6 +206,14 @@
           <div id="glow-row" class="choice-row"></div>
         </div>
 
+        <div class="custom-section">
+          <div class="custom-title">💡 چراغ‌های ماشین</div>
+          <div id="headlight-row" class="choice-row">
+            <button class="choice-chip" data-head="on">روشن 💡</button>
+            <button class="choice-chip" data-head="off">خاموش</button>
+          </div>
+          <div class="mini-label" style="margin-top:6px">برای چرخاندن ماشین، روی پیش‌نمایش بکشید 🖱️</div>
+        </div>
         <button id="btn-buy" class="btn btn-primary btn-buy">انتخاب این ماشین</button>
       </aside>
     </div>
@@ -327,6 +352,7 @@
 
       <canvas id="minimap" width="170" height="170" aria-hidden="true"></canvas>
       <div id="hud-msg" class="hud-msg"></div>
+      <div id="hud-controls-hint" class="hud-controls-hint">W گاز · S ترمز/عقب · A/D فرمان · Space ترمز دستی · C دوربین · R بازنشانی · L چراغ</div>
       <div id="hud-drift" class="hud-drift">DRIFT +0</div>
     </div>
 
@@ -365,6 +391,7 @@
         <div><div class="setting-name">کیفیت گرافیک</div><div class="setting-desc">سایه‌ها و رزولوشن رندر</div></div>
         <div id="setting-quality" class="choice-row">
           <button class="choice-chip" data-q="high">بالا ✨</button>
+          <button class="choice-chip" data-q="medium">متوسط ⚖️</button>
           <button class="choice-chip" data-q="low">سریع 🚀</button>
         </div>
       </div>
@@ -372,6 +399,7 @@
         <div><div class="setting-name">دوربین پیش‌فرض</div><div class="setting-desc">نمای شروع هر مسابقه</div></div>
         <div id="setting-camera" class="choice-row">
           <button class="choice-chip" data-cam="chase">تعقیب</button>
+          <button class="choice-chip" data-cam="hood">کاپوت</button>
           <button class="choice-chip" data-cam="cockpit">کابین</button>
         </div>
       </div>
@@ -380,6 +408,13 @@
         <div id="setting-mute" class="choice-row">
           <button class="choice-chip" data-mute="off">روشن 🔊</button>
           <button class="choice-chip" data-mute="on">بی‌صدا 🔇</button>
+        </div>
+      </div>
+      <div class="setting-row">
+        <div><div class="setting-name">موسیقی پس‌زمینه</div><div class="setting-desc">ملودی ملایم هنگام رانندگی</div></div>
+        <div id="setting-music" class="choice-row">
+          <button class="choice-chip" data-music="on">روشن 🎵</button>
+          <button class="choice-chip" data-music="off">خاموش</button>
         </div>
       </div>
       <button id="btn-reset-save" class="btn btn-danger">🗑️ شروع از صفر (حذف پیشرفت)</button>
@@ -395,6 +430,7 @@
 <script src="js/carfactory.js"></script>
 <script src="js/world.js"></script>
 <script src="js/race.js"></script>
+<script src="js/freedrive.js"></script>
 <script src="js/ui.js"></script>
 <script src="js/main.js"></script>
 </body>

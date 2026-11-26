@@ -591,11 +591,35 @@
     group.userData = {
       bodyLength: L, bodyWidth: W, wheelRadius: b.wr,
       cameraY: b.belt + (b.roof - b.belt) * 0.60 + 0.05,
-      wheels: wheels, steers: steers, tailMat: tailMat, headMat: headMat,
+      wheels: wheels, steers: steers, tailMat: tailMat, headMat: headMat, drlMat: (typeof drlMat !== 'undefined' ? drlMat : null),
       glowLight: glowLight, interior: interior, steeringWheel: wheel
     };
     return group;
   }
 
-  root.NitroCarFactory = { buildCar: buildCar, BODY: BODY };
+  function setHeadlights(carGroup, on) {
+    var ud = carGroup.userData || {};
+    if (ud.headMat) ud.headMat.emissiveIntensity = on ? 3.2 : 0.35;
+    if (ud.drlMat) ud.drlMat.emissiveIntensity = on ? 3.4 : 0.25;
+    if (ud.headSpots) ud.headSpots.forEach(function (s) { s.visible = !!on; });
+    carGroup.userData.headlightsOn = !!on;
+  }
+  function addHeadlightBeams(carGroup) {
+    var ud = carGroup.userData || {};
+    var L = ud.bodyLength || 4.4, W = ud.bodyWidth || 1.9;
+    var spots = [];
+    [-1, 1].forEach(function (s) {
+      var spot = new THREE.SpotLight(0xd8ecff, 2.2, 55, 0.5, 0.55, 1.3);
+      spot.position.set(s * (W/2 - 0.36), 0.62, L/2 - 0.1);
+      var tgt = new THREE.Object3D();
+      tgt.position.set(s * (W/2 - 0.36), 0.25, 16);
+      carGroup.add(tgt);
+      spot.target = tgt;
+      carGroup.add(spot);
+      spots.push(spot);
+    });
+    carGroup.userData.headSpots = spots;
+    return spots;
+  }
+  root.NitroCarFactory = { buildCar: buildCar, BODY: BODY, setHeadlights: setHeadlights, addHeadlightBeams: addHeadlightBeams };
 })(typeof window !== 'undefined' ? window : globalThis);

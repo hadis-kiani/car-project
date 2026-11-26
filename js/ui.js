@@ -35,7 +35,8 @@
   function App() {
     this.audio = new AudioMan.AudioEngine();
     this.save = Data.loadSave();
-    this.sel = { trackId: Data.TRACKS[0].id, tod: this.save.settings.tod || 'night', laps: 2, difficulty: this.save.settings.difficulty || 'pro' };
+    this.sel = { trackId: Data.TRACKS[0].id, tod: this.save.settings.tod || 'night', weather: this.save.settings.weather || 'sunny', mode: 'free', laps: 2, difficulty: this.save.settings.difficulty || 'pro' };
+    this.currentFree = null;
     this.currentRace = null;
     this.previewCarId = this.save.selectedId;
     this.garageReady = false;
@@ -53,6 +54,7 @@
     this._syncRecordUI();
     this._updateSetupBar();
     this._renderTrackBests();
+    this._runLoading();
     /* اولین لمس کاربر = فعال‌سازی صدا + پد منو */
     var self = this;
     var firstGesture = function () {
@@ -107,8 +109,16 @@
   /* ============ منوی اصلی ============ */
   App.prototype._bindMenu = function () {
     var self = this;
+    var fdBtn = $('btn-free-drive');
+    if (fdBtn) fdBtn.addEventListener('click', function () {
+      self._click();
+      self.sel.mode = 'free';
+      self.audio.stopMenuPad();
+      self.show('screen-setup');
+    });
     $('btn-start-race').addEventListener('click', function () {
       self._click();
+      self.sel.mode = 'race';
       self.audio.stopMenuPad();
       self.show('screen-setup');
     });
@@ -175,6 +185,13 @@
         self.persist(); self.audio.setMuted(self.save.settings.muted); self._syncSettingsUI(); self._click();
       });
     });
+    var musicRow = $('setting-music');
+    if (musicRow) musicRow.querySelectorAll('.choice-chip').forEach(function (chip) {
+      chip.addEventListener('click', function () {
+        self.save.settings.music = chip.getAttribute('data-music') === 'on';
+        self.persist(); self._syncSettingsUI(); self._click();
+      });
+    });
     $('btn-reset-save').addEventListener('click', function () {
       if (window.confirm('تمام پیشرفت، ماشین‌های خریداری‌شده و رکوردها حذف شود؟')) {
         self.save = Data.resetSave();
@@ -188,6 +205,8 @@
     $('setting-quality').querySelectorAll('.choice-chip').forEach(function (c) { c.classList.toggle('selected', c.getAttribute('data-q') === q); });
     $('setting-camera').querySelectorAll('.choice-chip').forEach(function (c) { c.classList.toggle('selected', c.getAttribute('data-cam') === cam); });
     $('setting-mute').querySelectorAll('.choice-chip').forEach(function (c) { c.classList.toggle('selected', (c.getAttribute('data-mute') === 'on') === muted); });
+    var musicRow2 = $('setting-music');
+    if (musicRow2) musicRow2.querySelectorAll('.choice-chip').forEach(function (c) { c.classList.toggle('selected', (c.getAttribute('data-music') === 'on') === (this.save.settings.music !== false)); }, this);
   };
 
   /* ============ انتخاب مسیر ============ */
@@ -199,6 +218,12 @@
     }).join('');
     $('tod-list').querySelectorAll('.choice-chip').forEach(function (chip) {
       chip.addEventListener('click', function () { self.sel.tod = chip.getAttribute('data-tod'); self._syncSetupChoices(); self._click(); });
+    });
+    $('weather-list').innerHTML = Data.WEATHERS.map(function (w) {
+      return '<button class="choice-chip" data-weather="' + w.id + '">' + w.icon + ' ' + w.name + '</button>';
+    }).join('');
+    $('weather-list').querySelectorAll('.choice-chip').forEach(function (chip) {
+      chip.addEventListener('click', function () { self.sel.weather = chip.getAttribute('data-weather'); self._syncSetupChoices(); self._click(); });
     });
     $('diff-group').innerHTML = Data.DIFFICULTY.map(function (d) {
       return '<button class="choice-chip" data-diff="' + d.id + '">' + d.name + '</button>';
@@ -217,7 +242,8 @@
     $('btn-launch').addEventListener('click', function () {
       self._click();
       self.audio.beep(true);
-      self._launchRace();
+      if (self.sel.mode === 'free') self._launchFree();
+      else self._launchRace();
     });
     this._syncSetupChoices();
   };
@@ -227,6 +253,10 @@
     $('diff-group').querySelectorAll('.choice-chip').forEach(function (c) { c.classList.toggle('selected', c.getAttribute('data-diff') === this.sel.difficulty); }, this);
     $('laps-group').querySelectorAll('.choice-chip').forEach(function (c) { c.classList.toggle('selected', parseInt(c.getAttribute('data-laps'), 10) === this.sel.laps); }, this);
     $('track-list').querySelectorAll('.track-card').forEach(function (c) { c.classList.toggle('selected', c.getAttribute('data-track') === this.sel.trackId); }, this);
+    var wl = $('weather-list');
+    if (wl) wl.querySelectorAll('.choice-chip').forEach(function (c) { c.classList.toggle('selected', c.getAttribute('data-weather') === this.sel.weather); }, this);
+    var launchBtn = $('btn-launch');
+    if (launchBtn) launchBtn.innerHTML = this.sel.mode === 'free' ? 'شروع رانندگی آزاد! 🟢' : 'استارت مسابقه! 🟢';
   };
 
   App.prototype._updateSetupBar = function () {
@@ -328,6 +358,25 @@
     $('car-prev').addEventListener('click', function () { self._stepCar(-1); });
     $('car-next').addEventListener('click', function () { self._stepCar(1); });
     $('btn-buy').addEventListener('click', function () { self._buyOrSelect(); });
+    var hlRow = $('headlight-row');
+    if (hlRow) hlRow.querySelectorAll('.choice-chip').forEach(function (chip) {
+      chip.addEventListener('click', function () {
+        self.save.settings.headlights = chip.getAttribute('data-head') === 'on';
+        self.persist(); self._applyGarageHeadlights(); self._syncHeadlightUI(); self._click();
+      });
+    });
+    var canvas = $('garage-canvas');
+    if (canvas) {
+      var dragging = false, lastX = 0;
+      canvas.addEventListener('pointerdown', function (e) { dragging = true; lastX = e.clientX; canvas.setPointerCapture(e.pointerId); });
+      canvas.addEventListener('pointermove', function (e) {
+        if (!dragging) return;
+        self._previewSpin += (e.clientX - lastX) * 0.012;
+        lastX = e.clientX;
+      });
+      canvas.addEventListener('pointerup', function () { dragging = false; });
+      canvas.addEventListener('pointercancel', function () { dragging = false; });
+    }
     window.addEventListener('resize', function () { self._resizePreview(); });
   };
 
@@ -448,6 +497,8 @@
     this._disposePreviewGroup();
     var car = Data.getCar(this.previewCarId);
     var group = CarFactory.buildCar(this._previewOptions(car));
+    CarFactory.addHeadlightBeams(group);
+    CarFactory.setHeadlights(group, this.save.settings.headlights !== false);
     group.position.y = 0.22;
     this.garageScene.add(group);
     this.previewGroup = group;
@@ -521,9 +572,20 @@
     var idx = ORDERED_CARS.findIndex(function (c) { return c.id === car.id; });
     $('preview-counter').textContent = faNum(idx + 1) + ' / ' + faNum(ORDERED_CARS.length);
 
+    this._syncHeadlightUI();
     this._renderUpgrades(car);
     this._renderCustomization(car);
     this._renderBuyButton(car);
+  };
+
+  App.prototype._syncHeadlightUI = function () {
+    var row = $('headlight-row');
+    if (!row) return;
+    var on = this.save.settings.headlights !== false;
+    row.querySelectorAll('.choice-chip').forEach(function (c) { c.classList.toggle('selected', (c.getAttribute('data-head') === 'on') === on); });
+  };
+  App.prototype._applyGarageHeadlights = function () {
+    if (this.previewGroup) CarFactory.setHeadlights(this.previewGroup, this.save.settings.headlights !== false);
   };
 
   App.prototype._renderUpgrades = function (car) {
@@ -940,6 +1002,51 @@
     var pctTotal = clamp(unlocked / ACHIEVEMENTS.length * 100, 0, 100);
     $('ach-percent').textContent = faNum(Math.round(pctTotal)) + '٪';
     $('ach-ring').style.setProperty('--p', pctTotal);
+  };
+
+  App.prototype._runLoading = function () {
+    var bar = $('loading-bar'), txt = $('loading-text'), scr = $('loading-screen');
+    if (!bar || !scr) return;
+    var pct = 0;
+    var iv = setInterval(function () {
+      pct = Math.min(100, pct + 7 + Math.random() * 9);
+      bar.style.width = pct + '%';
+      if (txt) txt.textContent = faNum(Math.round(pct)) + '٪';
+      if (pct >= 100) { clearInterval(iv); setTimeout(function () { scr.classList.add('done'); }, 350); }
+    }, 110);
+  };
+
+  App.prototype._launchFree = function () {
+    var self = this;
+    if (this.currentFree) { this.currentFree.dispose(); this.currentFree = null; }
+    if (this.currentRace) { this.currentRace.dispose(); this.currentRace = null; }
+    this.show('screen-hud');
+    this.audio.stopMenuPad();
+    $('hud-pos').textContent = '∞';
+    $('hud-lap').textContent = 'رانندگی آزاد';
+    $('hud-time').textContent = '۰۰:۰۰.۰۰';
+    $('hud-best').textContent = '--:--.--';
+    $('hud-speed').textContent = '۰';
+    $('hud-gear').textContent = '1';
+    var touch = $('touch-controls');
+    if (touch) touch.classList.toggle('on', ('ontouchstart' in window) || navigator.maxTouchPoints > 0);
+    this.save.settings.weather = this.sel.weather;
+    this.persist();
+    this.currentFree = new root.NitroFreeDrive.FreeDriveSession({
+      container: $('race-container'),
+      trackId: this.sel.trackId,
+      weather: this.sel.weather,
+      carId: this.save.selectedId,
+      save: this.save,
+      audio: this.audio,
+      callbacks: {
+        onQuit: function () {
+          self.currentFree = null;
+          self.show('screen-menu');
+          self.audio.startMenuPad();
+        }
+      }
+    });
   };
 
   /* ============ راه‌اندازی مسابقه ============ */

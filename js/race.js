@@ -40,6 +40,7 @@
     this.keys = {};
     this.touch = { left: false, right: false, gas: false, brake: false, drift: false };
     this.camMode = this.save.settings.camera === 'cockpit' ? 'cockpit' : 'chase';
+    this.camModes = ['chase', 'hood', 'cockpit'];
     this.paused = false;
     this.racingTime = 0;
     this.countdownT = 3.6;
@@ -72,9 +73,9 @@
     this.scene = scene;
     var renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
     var quality = this.save.settings.quality || 'high';
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, quality === 'high' ? 2 : 1.25));
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, quality === 'high' ? 2 : quality === 'medium' ? 1.5 : 1));
     renderer.setSize(container.clientWidth, container.clientHeight);
-    renderer.shadowMap.enabled = quality === 'high';
+    renderer.shadowMap.enabled = quality !== 'low';
     renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     renderer.outputEncoding = THREE.sRGBEncoding;
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
@@ -136,7 +137,7 @@
     this.finished = false;
 
     /* چراغ جلو برای شب */
-    if (this.tod === 'night') {
+    if (this.tod === 'night' || this.tod === 'rain') {
       var head = new THREE.SpotLight(0xd8e9ff, 1.7, 62, 0.46, 0.55, 1.4);
       head.position.set(0, 1.05, 1.6);
       var tgt = new THREE.Object3D();
@@ -235,6 +236,8 @@
       if (['arrowup', 'arrowdown', 'arrowleft', 'arrowright', ' '].indexOf(k) >= 0) e.preventDefault();
       self.keys[k] = true;
       if (k === 'c') self.toggleCamera();
+      if (k === 'r') self.resetCar();
+      if (k === 'l') self.toggleHeadlights();
       if (k === 'escape') self.togglePause();
       if (k === 'm') { self.audio.setMuted(!self.audio.muted); self._syncMuteButton(); }
     };
@@ -276,10 +279,22 @@
 
   RaceSession.prototype.toggleCamera = function () {
     if (this.disposed) return;
-    this.camMode = this.camMode === 'chase' ? 'cockpit' : 'chase';
-    var int = this.player.userData.interior;
-    if (int) int.visible = this.camMode === 'cockpit';
-    this._flashMsg(this.camMode === 'cockpit' ? 'دوربین کابین' : 'دوربین تعقیب', 0.9);
+    var i = this.camModes.indexOf(this.camMode);
+    this.camMode = this.camModes[(i + 1) % this.camModes.length];
+    var names = { chase: 'دوربین تعقیب', hood: 'دوربین کاپوت', cockpit: 'دوربین کابین' };
+    this._flashMsg(names[this.camMode], 0.9);
+  };
+  RaceSession.prototype.resetCar = function () {
+    var grid = this.world.startGrid[0];
+    this.ppos.copy(grid.pos);
+    this.yaw = grid.yaw;
+    this.sf = 0; this.sl = 0; this.vel.set(0,0,0);
+    this._flashMsg('بازنشانی ماشین', 0.9);
+  };
+  RaceSession.prototype.toggleHeadlights = function () {
+    if (!this.headlight) { this._flashMsg('چراغ جلو در روز لازم نیست', 0.9); return; }
+    this.headlight.visible = !this.headlight.visible;
+    this._flashMsg(this.headlight.visible ? 'چراغ‌ها روشن' : 'چراغ‌ها خاموش', 0.9);
   };
 
   RaceSession.prototype.togglePause = function () {
@@ -318,6 +333,7 @@
     this._updateCamera(dt);
     this._updateHUD(dt);
     this._updateSun();
+    if (this.world.rain && World.updateRain) World.updateRain(dt, this.ppos);
     this.renderer.render(this.scene, this.camera);
   };
 
@@ -702,6 +718,19 @@
       look.y = base.y + eyeH - 0.10;
       cam.lookAt(look);
       cam.fov = lerp(cam.fov, 74, 0.1);
+      cam.updateProjectionMatrix();
+      return;
+    }
+    if (this.camMode === 'hood') {
+      if (ud.interior) ud.interior.visible = false;
+      var fwdH = new THREE.Vector3(Math.sin(this.yaw), 0, Math.cos(this.yaw));
+      var eyeH = this.player.position.clone().addScaledVector(fwdH, 1.55);
+      eyeH.y = this.player.position.y + 1.02;
+      cam.position.lerp(eyeH, 1 - Math.exp(-16 * dt));
+      var lookH = this.player.position.clone().addScaledVector(fwdH, 30);
+      lookH.y = this.player.position.y + 0.85;
+      cam.lookAt(lookH);
+      cam.fov = lerp(cam.fov, 70, 0.1);
       cam.updateProjectionMatrix();
       return;
     }

@@ -161,7 +161,8 @@
   var SKY = {
     day:    { top: '#2f6fd0', mid: '#6fa8e0', horizon: '#bfe0f2', sun: { x: 0.72, y: 0.30, r: 26, color: '#fffbe8', glow: 'rgba(255,250,220,0.55)' }, fog: 0xb9d2e4, fogNear: 150, fogFar: 850, hemiSky: 0xbdd9ff, hemiGround: 0x51604c, hemiInt: 0.85, sunColor: 0xfff3dd, sunInt: 1.35, amb: 0.32, exposure: 1.02, emissive: 0.12, envInt: 1.0 },
     sunset: { top: '#2a1846', mid: '#83355c', horizon: '#ff9a4a', sun: { x: 0.5, y: 0.475, r: 40, color: '#ffd9a0', glow: 'rgba(255,150,70,0.6)' }, fog: 0xcf8a63, fogNear: 110, fogFar: 700, hemiSky: 0xffc189, hemiGround: 0x3d2b26, hemiInt: 0.66, sunColor: 0xffc98a, sunInt: 1.22, amb: 0.22, exposure: 1.1, emissive: 0.62, envInt: 1.1 },
-    night:  { top: '#01040f', mid: '#070d20', horizon: '#131f38', sun: { x: 0.62, y: 0.22, r: 15, color: '#e8eeff', glow: 'rgba(190,210,255,0.35)' }, fog: 0x080d1a, fogNear: 80, fogFar: 520, hemiSky: 0x33508f, hemiGround: 0x05070c, hemiInt: 0.42, sunColor: 0xa9c2ff, sunInt: 0.5, amb: 0.17, exposure: 0.98, emissive: 1.05, envInt: 0.85 }
+    night:  { top: '#01040f', mid: '#070d20', horizon: '#131f38', sun: { x: 0.62, y: 0.22, r: 15, color: '#e8eeff', glow: 'rgba(190,210,255,0.35)' }, fog: 0x080d1a, fogNear: 80, fogFar: 520, hemiSky: 0x33508f, hemiGround: 0x05070c, hemiInt: 0.42, sunColor: 0xa9c2ff, sunInt: 0.5, amb: 0.17, exposure: 0.98, emissive: 1.05, envInt: 0.85 },
+    rain:   { top: '#3d4a5c', mid: '#5d6d80', horizon: '#8fa3b5', sun: { x: 0.5, y: 0.4, r: 30, color: '#dfe8f0', glow: 'rgba(200,215,230,0.25)' }, fog: 0x6b7d8f, fogNear: 55, fogFar: 420, hemiSky: 0x9fb4c8, hemiGround: 0x2e3a33, hemiInt: 0.72, sunColor: 0xc9d6e2, sunInt: 0.55, amb: 0.30, exposure: 0.95, emissive: 0.55, envInt: 1.25 }
   };
 
   function buildSky(scene, todId) {
@@ -684,6 +685,92 @@
     scene.add(mesh);
   }
 
+
+  /* ---------- باران ---------- */
+  var rainPoints = null, rainVel = null;
+  function buildRain(scene) {
+    var N = 2600;
+    var pos = new Float32Array(N * 3);
+    rainVel = new Float32Array(N);
+    for (var i = 0; i < N; i++) {
+      pos[i*3] = (Math.random()-0.5)*120;
+      pos[i*3+1] = Math.random()*45;
+      pos[i*3+2] = (Math.random()-0.5)*120;
+      rainVel[i] = 18 + Math.random()*14;
+    }
+    var geo = new THREE.BufferGeometry();
+    geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+    var mat = new THREE.PointsMaterial({ color: 0xbdd7ee, size: 0.14, transparent: true, opacity: 0.65, sizeAttenuation: true });
+    rainPoints = new THREE.Points(geo, mat);
+    rainPoints.frustumCulled = false;
+    scene.add(rainPoints);
+    return rainPoints;
+  }
+  function updateRain(dt, center) {
+    if (!rainPoints) return;
+    var pos = rainPoints.geometry.attributes.position;
+    var arr = pos.array;
+    for (var i = 0; i < rainVel.length; i++) {
+      arr[i*3+1] -= rainVel[i] * dt;
+      arr[i*3] += 2.2 * dt; // باد ملایم
+      if (arr[i*3+1] < 0) {
+        arr[i*3+1] = 38 + Math.random()*8;
+        arr[i*3] = center.x + (Math.random()-0.5)*120;
+        arr[i*3+2] = center.z + (Math.random()-0.5)*120;
+      }
+    }
+    pos.needsUpdate = true;
+    rainPoints.position.set(center.x, 0, center.z);
+  }
+
+  /* ---------- درختان و فضای سبز شهری + تابلوهای راهنمایی ---------- */
+  function placeGreenery(scene, samples, halfW, rng, colliders) {
+    var trunkMat = new THREE.MeshStandardMaterial({ color: 0x4a3520, roughness: 1 });
+    var leafMat = new THREE.MeshStandardMaterial({ color: 0x2e7d32, roughness: 0.95, flatShading: true });
+    var leafMat2 = new THREE.MeshStandardMaterial({ color: 0x43a047, roughness: 0.95, flatShading: true });
+    var trunkGeo = new THREE.CylinderGeometry(0.14, 0.2, 2.2, 7);
+    var crownGeo = new THREE.IcosahedronGeometry(1.5, 1);
+    for (var i = 14; i < samples.length; i += 11) {
+      var s = samples[i];
+      var side = (i % 22 < 11) ? 1 : -1;
+      var dist = halfW + 3.2 + rng()*2.2;
+      var x = s.pos.x + s.side.x*side*dist, z = s.pos.z + s.side.z*side*dist;
+      var y = s.pos.y || 0;
+      var trunk = new THREE.Mesh(trunkGeo, trunkMat);
+      trunk.position.set(x, y+1.1, z);
+      trunk.scale.setScalar(0.8+rng()*0.7);
+      scene.add(trunk);
+      var crown = new THREE.Mesh(crownGeo, rng()<0.5?leafMat:leafMat2);
+      crown.position.set(x, y+2.9+rng()*0.8, z);
+      crown.scale.set(1+rng()*0.8, 0.85+rng()*0.5, 1+rng()*0.8);
+      crown.castShadow = true;
+      scene.add(crown);
+      colliders.push({x:x, z:z, r:0.5});
+    }
+    // تابلوهای راهنمایی (سرعت / جهت)
+    var signTex = canvasTexture(mkCanvas(128,128,function(g){
+      g.fillStyle='#0b3d91'; g.fillRect(0,0,128,128);
+      g.strokeStyle='#fff'; g.lineWidth=6; g.strokeRect(6,6,116,116);
+      g.fillStyle='#fff'; g.font='bold 44px Tahoma'; g.textAlign='center';
+      g.fillText('60',64,58); g.font='bold 20px Tahoma'; g.fillText('km/h',64,92);
+    }),1,1);
+    var signMat = new THREE.MeshStandardMaterial({ map: signTex, roughness: 0.5 });
+    var poleMat2 = new THREE.MeshStandardMaterial({ color: 0x8a8f96, metalness: 0.7, roughness: 0.4 });
+    for (var j = 30; j < samples.length; j += 55) {
+      var s2 = samples[j];
+      var sd = (j % 110 < 55) ? 1 : -1;
+      var sx = s2.pos.x + s2.side.x*sd*(halfW+1.4), sz = s2.pos.z + s2.side.z*sd*(halfW+1.4);
+      var sy = s2.pos.y || 0;
+      var pole = new THREE.Mesh(new THREE.CylinderGeometry(0.06,0.06,2.6,6), poleMat2);
+      pole.position.set(sx, sy+1.3, sz); scene.add(pole);
+      var sign = new THREE.Mesh(new THREE.BoxGeometry(1.0,1.0,0.06), signMat);
+      sign.position.set(sx, sy+2.7, sz);
+      sign.rotation.y = Math.atan2(-s2.side.x*sd, -s2.side.z*sd);
+      scene.add(sign);
+      colliders.push({x:sx, z:sz, r:0.3});
+    }
+  }
+
   /* ============================================================
      buildRaceWorld — ورودی اصلی
      ============================================================ */
@@ -706,7 +793,7 @@
     var hemi = new THREE.HemisphereLight(todP.hemiSky, todP.hemiGround, todP.hemiInt);
     scene.add(hemi);
     var sun = new THREE.DirectionalLight(todP.sunColor, todP.sunInt);
-    var sunDir = todId === 'sunset' ? new THREE.Vector3(-0.55, 0.38, -0.74) : todId === 'day' ? new THREE.Vector3(0.45, 0.85, 0.3) : new THREE.Vector3(0.35, 0.8, 0.35);
+    var sunDir = todId === 'sunset' ? new THREE.Vector3(-0.55, 0.38, -0.74) : todId === 'day' ? new THREE.Vector3(0.45, 0.85, 0.3) : todId === 'rain' ? new THREE.Vector3(0.3, 0.55, 0.2) : new THREE.Vector3(0.35, 0.8, 0.35);
     sun.position.copy(sunDir).multiplyScalar(160);
     sun.castShadow = true;
     sun.shadow.mapSize.set(2048, 2048);
@@ -725,7 +812,7 @@
     /* زمین و جاده */
     if (trackDef.env === 'mountain') buildHeightfield(scene, samples, halfW);
     else buildGround(scene, trackDef.env, maxExtent);
-    var wetRoad = todP.emissive > 0.5;
+    var wetRoad = todP.emissive > 0.5 || todId === 'rain';
     var roadMat = new THREE.MeshStandardMaterial({ map: roadTex, roughness: wetRoad ? 0.38 : 0.94, metalness: wetRoad ? 0.32 : 0.02, envMapIntensity: wetRoad ? 1.5 : 1.0 });
     var road = buildRibbon(samples, null, function () { return halfW; }, 7, roadMat, 0.0);
     scene.add(road);
@@ -804,7 +891,7 @@
     })();
 
     /* محتوای هر محیط */
-    if (trackDef.env === 'city') placeCity(scene, trackDef, samples, halfW, rng, todP, colliders);
+    if (trackDef.env === 'city') { placeCity(scene, trackDef, samples, halfW, rng, todP, colliders); placeGreenery(scene, samples, halfW, rng, colliders); }
     else if (trackDef.env === 'desert') placeDesert(scene, trackDef, samples, halfW, rng, todP, colliders);
     else placeMountain(scene, trackDef, samples, halfW, rng, todP, colliders);
 
@@ -832,7 +919,9 @@
       });
     }
 
+    var rainObj = (todId === 'rain') ? buildRain(scene) : null;
     return {
+      rain: rainObj,
       curve: sampled.curve,
       samples: samples,
       length: sampled.length,
@@ -893,5 +982,5 @@
     scene.clear();
   }
 
-  root.NitroWorld = { buildRaceWorld: buildRaceWorld, disposeScene: disposeScene, findNearest: findNearest, SKY: SKY };
+  root.NitroWorld = { buildRaceWorld: buildRaceWorld, disposeScene: disposeScene, findNearest: findNearest, SKY: SKY, updateRain: updateRain };
 })(typeof window !== 'undefined' ? window : globalThis);

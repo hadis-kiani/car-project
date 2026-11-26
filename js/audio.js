@@ -13,6 +13,8 @@
     this.screechGain = null;
     this.windGain = null;
     this.menuPad = null;
+    this.rainGain = null;
+    this.musicTimer = null;
     this._ready = false;
   }
 
@@ -29,6 +31,7 @@
       this._buildEngine();
       this._buildScreech();
       this._buildWind();
+      this._buildRain();
       this._ready = true;
       return true;
     } catch (e) {
@@ -209,4 +212,41 @@
   };
 
   root.NitroAudio = { AudioEngine: AudioEngine };
+
+  /* ---------- صدای باران ---------- */
+  AudioEngine.prototype._buildRain = function () {
+    var ctx = this.ctx;
+    var src = ctx.createBufferSource(); src.buffer = this.noiseBuffer; src.loop = true;
+    var lp = ctx.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 1400; lp.Q.value = 0.4;
+    var hp = ctx.createBiquadFilter(); hp.type = 'highpass'; hp.frequency.value = 320;
+    var g = ctx.createGain(); g.gain.value = 0;
+    src.connect(hp); hp.connect(lp); lp.connect(g); g.connect(this.master);
+    src.start();
+    this.rainGain = g;
+  };
+  AudioEngine.prototype.setRain = function (amount) {
+    if (!this._ready || !this.rainGain) return;
+    this.rainGain.gain.setTargetAtTime(Math.min(0.32, amount * 0.30), this.ctx.currentTime, 0.4);
+  };
+  /* ---------- موسیقی پس‌زمینه (ملودی سادهٔ سینث) ---------- */
+  AudioEngine.prototype.startMusic = function () {
+    if (!this._ready || this.musicTimer) return;
+    var self = this;
+    var notes = [220, 261.6, 329.6, 392, 329.6, 261.6, 196, 246.9];
+    var step = 0;
+    var play = function () {
+      if (!self._ready) return;
+      var f = notes[step % notes.length];
+      blip(self.ctx, self.master, 'triangle', f, 0.55, 0.055);
+      blip(self.ctx, self.master, 'sine', f * 2, 0.4, 0.02);
+      step++;
+    };
+    play();
+    this.musicTimer = setInterval(play, 420);
+  };
+  AudioEngine.prototype.stopMusic = function () {
+    if (this.musicTimer) { clearInterval(this.musicTimer); this.musicTimer = null; }
+  };
+  AudioEngine.prototype.setBrake = function (amount) { this.setScreech(amount); };
+
 })(typeof window !== 'undefined' ? window : globalThis);

@@ -176,7 +176,15 @@
   var TOD = [
     { id: 'day',    name: 'روز',   icon: '☀' },
     { id: 'sunset', name: 'غروب',  icon: '🌇' },
-    { id: 'night',  name: 'شب',    icon: '🌙' }
+    { id: 'night',  name: 'شب',    icon: '🌙' },
+    { id: 'rain',   name: 'بارانی', icon: '🌧' }
+  ];
+
+  /* ---------- آب‌وهوا (رانندگی آزاد) ---------- */
+  var WEATHERS = [
+    { id: 'sunny', name: 'آفتابی', icon: '☀️', tod: 'day',   desc: 'آسمان صاف و نور خورشید' },
+    { id: 'night', name: 'شب',     icon: '🌙', tod: 'night', desc: 'چراغ‌های شهری و نورپردازی شبانه' },
+    { id: 'rain',  name: 'بارانی', icon: '🌧️', tod: 'rain',  desc: 'خیابان خیس، انعکاس نور و باران' }
   ];
 
   /* ---------- ارتقای ماشین (۵ سطح) ---------- */
@@ -213,7 +221,7 @@
     bestLaps: {},            // trackId -> seconds
     bestTotal: {},
     stats: { wins: 0, races: 0, driftBest: 0 },
-    settings: { tod: 'night', difficulty: 'pro', quality: 'high', camera: 'chase', muted: false }
+    settings: { tod: 'night', weather: 'sunny', difficulty: 'pro', quality: 'medium', camera: 'chase', muted: false, headlights: true, music: true }
   };
 
   function clone(o) { return JSON.parse(JSON.stringify(o)); }
@@ -271,7 +279,7 @@
   root.NitroData = {
     PAINTS, FINISHES, RIMS, RIM_COLORS, TIRES, GLOWS,
     CARS, CLASS_LABELS, RARITY_LABELS,
-    TRACKS, TOD, UPGRADES, UPGRADE_MAX, upgradeCost,
+    TRACKS, TOD, WEATHERS, UPGRADES, UPGRADE_MAX, upgradeCost,
     PLACE_REWARDS, DIFFICULTY,
     SAVE_KEY, DEFAULT_SAVE, loadSave, saveSave, resetSave,
     getCar, carPaint, carFinish, carRim, carRimColor, carTire, carGlow, carUpgrades, effectiveStats
