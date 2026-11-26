@@ -483,3 +483,65 @@ kbd{background:#1c2233;border:1px solid #33405e;border-bottom-width:3px;border-r
   .result-buttons{flex-direction:column}
   .result-buttons .btn{width:100%}
 }
+
+/* ============ صفحهٔ بارگذاری ============ */
+.loading-screen{position:fixed;inset:0;z-index:9000;display:flex;align-items:center;justify-content:center;background:var(--bg);transition:opacity .6s ease,visibility .6s}
+.loading-screen.hide{opacity:0;visibility:hidden;pointer-events:none}
+.loading-bg{position:absolute;inset:0;background:url('../assets/hero.jpg') center 30%/cover no-repeat;opacity:.20;filter:saturate(.7) blur(2px)}
+.loading-vignette{position:absolute;inset:0;background:radial-gradient(ellipse at center,transparent 28%,rgba(5,7,13,.94) 100%)}
+.loading-speed-lines{position:absolute;inset:0;z-index:1;opacity:.4;background:repeating-linear-gradient(115deg,transparent 0 90px,rgba(140,235,255,.06) 90px 96px,transparent 96px 200px);animation:linesSlide 2.6s linear infinite}
+.loading-content{position:relative;z-index:2;text-align:center;width:min(440px,90vw)}
+.loading-logo{font-family:var(--font);font-weight:900;font-size:2.7rem;color:#fff;letter-spacing:1px;text-shadow:0 0 26px rgba(0,229,255,.55);animation:neonFlicker 4s infinite}
+.loading-logo em{color:var(--cyan);font-style:normal}
+.loading-logo-en{font-weight:900;letter-spacing:9px;font-size:.85rem;color:rgba(255,255,255,.45);margin-top:6px}
+.loading-bar-wrap{margin-top:30px}
+.loading-bar{height:11px;border-radius:99px;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.12);overflow:hidden;box-shadow:inset 0 0 10px rgba(0,0,0,.55)}
+.loading-fill{height:100%;width:0%;border-radius:99px;background:linear-gradient(90deg,var(--cyan),#7CFC00);box-shadow:0 0 18px rgba(0,229,255,.75);transition:width .18s ease}
+.loading-meta{display:flex;justify-content:space-between;margin-top:10px;font-size:.82rem;color:rgba(255,255,255,.6);font-family:var(--font)}
+#loading-pct{color:var(--cyan);font-weight:800}
+.loading-tip{margin-top:18px;font-size:.85rem;color:rgba(255,255,255,.5);font-family:var(--font);min-height:1.3em;transition:opacity .25s}
+
+/* ============ چالش‌ها ============ */
+.challenge-body{max-width:1100px;margin:0 auto;width:100%}
+.challenge-head{display:flex;justify-content:space-between;align-items:flex-end;margin-bottom:14px;gap:12px;flex-wrap:wrap}
+.challenge-type-list{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:8px}
+.challenge-type-card{position:relative;background:var(--panel);border:1px solid var(--panel-border);border-radius:var(--radius);padding:18px 18px 16px;cursor:pointer;transition:.22s;backdrop-filter:blur(10px);overflow:hidden;text-align:right;font-family:var(--font);color:var(--text)}
+.challenge-type-card::after{content:'';position:absolute;inset:0;opacity:0;transition:.25s;pointer-events:none;background:radial-gradient(circle at 0% 0%,rgba(255,47,214,.10),transparent 60%)}
+.challenge-type-card:hover{transform:translateY(-4px);border-color:var(--panel-border-strong)}
+.challenge-type-card.selected{border-color:var(--magenta);box-shadow:0 0 0 2px var(--magenta),0 22px 60px rgba(255,47,214,.18)}
+.challenge-type-card.selected::after{opacity:1}
+.challenge-type-card .ct-icon{font-size:2.2rem;line-height:1}
+.challenge-type-card .ct-name{font-weight:900;font-size:1.2rem;margin-top:8px}
+.challenge-type-card .ct-tag{display:inline-block;font-size:.72rem;font-weight:700;color:var(--cyan);background:rgba(0,229,255,.12);border:1px solid rgba(0,229,255,.3);padding:2px 9px;border-radius:99px;margin-top:6px}
+.challenge-type-card .ct-desc{color:var(--muted);font-size:.86rem;margin-top:8px;line-height:1.5}
+.challenge-type-card .ct-reward{margin-top:10px;font-size:.82rem;color:var(--yellow);font-weight:700}
+.challenge-options{display:flex;flex-direction:column;gap:18px;margin-top:16px}
+.challenge-options-row{display:grid;grid-template-columns:.9fr 1.4fr;gap:18px}
+.track-list-mini{grid-template-columns:repeat(3,1fr);gap:12px}
+.track-list-mini .track-card{padding:12px 13px}
+.track-list-mini .track-canvas{display:none}
+.track-list-mini .track-en{display:none}
+.track-list-mini .track-desc{display:none}
+.track-list-mini .track-name{font-size:1rem}
+.challenge-brief .option-title{margin-bottom:8px}
+.challenge-desc{background:rgba(255,255,255,.03);border:1px solid var(--panel-border);border-radius:12px;padding:12px 14px;font-size:.88rem;line-height:1.6;color:var(--text);min-height:84px}
+.challenge-record{display:flex;justify-content:space-between;align-items:center;margin-top:12px;background:rgba(255,228,94,.07);border:1px solid rgba(255,228,94,.25);border-radius:12px;padding:9px 14px;font-size:.85rem;color:var(--muted)}
+.challenge-record b{color:var(--yellow);font-size:1.05rem}
+@media (max-width:820px){.challenge-type-list{grid-template-columns:1fr}.challenge-options-row{grid-template-columns:1fr}.track-list-mini{grid-template-columns:1fr}}
+
+/* ============ HUD چالش ============ */
+.hud-challenge{position:absolute;top:12px;left:50%;transform:translateX(-50%);display:none;align-items:center;gap:14px;background:rgba(8,11,20,.82);border:1px solid var(--panel-border-strong);border-radius:16px;padding:8px 16px;backdrop-filter:blur(10px);box-shadow:0 8px 30px rgba(0,0,0,.5);z-index:6;font-family:var(--font);pointer-events:none}
+#hud.challenge-mode .hud-challenge{display:flex}
+#hud.challenge-mode .hud-top-right{display:none}
+.hud-challenge .ch-icon{font-size:1.5rem}
+.hud-challenge .ch-info{text-align:right}
+.hud-challenge .ch-objective{font-weight:800;font-size:.92rem;color:#fff;white-space:nowrap}
+.hud-challenge .ch-metric{font-weight:900;font-size:1.5rem;color:var(--cyan);line-height:1}
+.hud-challenge .ch-metric small{font-size:.7rem;color:var(--muted);font-weight:600;margin-right:4px}
+.hud-challenge .ch-timer{text-align:center;border-right:1px solid rgba(255,255,255,.12);padding-right:14px}
+.hud-challenge .ch-timer span{font-weight:900;font-size:1.4rem;color:var(--yellow);font-variant-numeric:tabular-nums}
+.hud-challenge .ch-timer small,.hud-challenge .ch-target small{display:block;font-size:.62rem;color:var(--muted);font-weight:600;margin-top:1px}
+.hud-challenge .ch-target{text-align:center}
+.hud-challenge .ch-target span{font-weight:800;font-size:1.05rem;color:#fff}
+.hud-challenge .ch-timer.warn span{color:var(--red);animation:neonFlicker .6s infinite}
+@media (max-width:560px){.hud-challenge{gap:8px;padding:6px 10px}.hud-challenge .ch-metric{font-size:1.1rem}.hud-challenge .ch-timer span{font-size:1.05rem}.hud-challenge .ch-objective{font-size:.78rem}.hud-challenge .ch-target{display:none}}

@@ -15,6 +15,22 @@
 <body>
 <div id="app">
 
+  <!-- ============ صفحهٔ بارگذاری (نوار پیشرفت) ============ -->
+  <div id="loading-screen" class="loading-screen">
+    <div class="loading-bg"></div>
+    <div class="loading-vignette"></div>
+    <div class="loading-speed-lines" aria-hidden="true"></div>
+    <div class="loading-content">
+      <div class="loading-logo">نیترو <em>سیتی</em></div>
+      <div class="loading-logo-en">NITRO&nbsp;CITY</div>
+      <div class="loading-bar-wrap">
+        <div class="loading-bar"><div id="loading-fill" class="loading-fill"></div></div>
+        <div class="loading-meta"><span id="loading-pct">۰٪</span><span id="loading-status">بارگذاری موتور سه‌بعدی…</span></div>
+      </div>
+      <div class="loading-tip" id="loading-tip">در حال آماده‌سازی آسفالت…</div>
+    </div>
+  </div>
+
   <!-- ============ صفحهٔ اصلی ============ -->
   <section id="screen-menu" class="screen visible">
     <div class="menu-bg"></div>
@@ -45,6 +61,10 @@
         <button id="btn-start-race" class="btn btn-primary btn-huge">
           <span class="btn-icon">🏁</span>
           <span class="btn-text">شروع مسابقه<small>سه مسیر · سه زمان روز · رقابت با ۷ حریف هوشمند</small></span>
+        </button>
+        <button id="btn-challenge" class="btn btn-secondary btn-huge">
+          <span class="btn-icon">🎯</span>
+          <span class="btn-text">چالش<small>دریفت‌چالج و زمان‌آزمایی تک‌نفره · پاداش ویژه</small></span>
         </button>
         <div class="menu-grid">
           <button id="btn-garage" class="menu-tile tile-cyan">
@@ -119,6 +139,57 @@
         </div>
         <button id="btn-change-car" class="btn btn-ghost small">تعویض ماشین</button>
         <button id="btn-launch" class="btn btn-primary btn-launch">استارت! 🟢</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ چالش‌ها ============ -->
+  <section id="screen-challenge" class="screen">
+    <header class="subtopbar">
+      <button class="icon-btn back-btn" data-goto="menu" aria-label="بازگشت">←</button>
+      <h2>🎯 چالش‌های نیترو سیتی</h2>
+      <div class="pill pill-coins">🪙 <span id="challenge-coins">۰</span></div>
+    </header>
+
+    <div class="setup-scroll challenge-body">
+      <div class="challenge-head">
+        <div>
+          <h3 class="panel-title">نوع چالش را انتخاب کنید</h3>
+          <p class="panel-sub">چالش‌ها تک‌نفره‌اند — بدون حریف، فقط تو و زمان. رکورد بزن، سکه جایزه بگیر.</p>
+        </div>
+      </div>
+
+      <div id="challenge-type-list" class="challenge-type-list"></div>
+
+      <div class="challenge-options">
+        <div class="option-group">
+          <div class="option-title">🗺️ مسیر</div>
+          <div id="challenge-track-list" class="track-list track-list-mini"></div>
+        </div>
+        <div class="challenge-options-row">
+          <div class="option-group">
+            <div class="option-title">🕒 زمان روز</div>
+            <div id="challenge-tod-list" class="choice-row"></div>
+          </div>
+          <div class="option-group challenge-brief" id="challenge-brief">
+            <div class="option-title">📋 شرح چالش</div>
+            <div id="challenge-desc" class="challenge-desc">—</div>
+            <div class="challenge-record">
+              <span id="challenge-best-label">بهترین رکورد شما</span>
+              <b id="challenge-best">—</b>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="setup-car-bar">
+        <div class="setup-car-info">
+          <span class="setup-car-label">ماشین شما</span>
+          <strong id="challenge-car-name">—</strong>
+          <span id="challenge-car-class" class="class-badge">اسپرت</span>
+        </div>
+        <button id="btn-challenge-change-car" class="btn btn-ghost small">تعویض ماشین</button>
+        <button id="btn-challenge-launch" class="btn btn-primary btn-launch">شروع چالش! 🎯</button>
       </div>
     </div>
   </section>
@@ -293,6 +364,16 @@
     <div id="race-container"></div>
 
     <div id="hud">
+      <div id="hud-challenge" class="hud-challenge">
+        <div class="ch-icon" id="ch-icon">💨</div>
+        <div class="ch-info">
+          <div class="ch-objective" id="ch-objective">دریفت چالج</div>
+          <div class="ch-metric"><span id="ch-metric-val">۰</span><small id="ch-metric-unit">امتیاز</small></div>
+        </div>
+        <div class="ch-timer"><span id="ch-timer">۰:۸۰</span><small id="ch-timer-label">زمان</small></div>
+        <div class="ch-target"><small>هدف</small><span id="ch-target">۲۵۰۰</span></div>
+      </div>
+
       <div class="hud-top-right">
         <div class="hud-block">
           <div id="hud-pos-wrap" class="hud-pos-wrap"><span id="hud-pos">1</span><span class="hud-pos-total">/۸</span></div>

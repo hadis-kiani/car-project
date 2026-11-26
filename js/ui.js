@@ -13,7 +13,7 @@
   function faNum(n) { return Number(Math.round(n)).toLocaleString('fa-IR'); }
   function clamp(v, a, b) { return Math.max(a, Math.min(b, v)); }
 
-  var SCREENS = ['screen-menu', 'screen-setup', 'screen-garage', 'screen-showroom', 'screen-records', 'screen-achievements', 'screen-results', 'screen-hud'];
+  var SCREENS = ['screen-menu', 'screen-setup', 'screen-challenge', 'screen-garage', 'screen-showroom', 'screen-records', 'screen-achievements', 'screen-results', 'screen-hud'];
   var ORDERED_CARS = Data.CARS.slice().sort(function (a, b) { return a.price - b.price; });
 
   /* کاتالوگ دستاوردها — همه از روی آمار واقعی ذخیره محاسبه می‌شوند */
@@ -36,6 +36,8 @@
     this.audio = new AudioMan.AudioEngine();
     this.save = Data.loadSave();
     this.sel = { trackId: Data.TRACKS[0].id, tod: this.save.settings.tod || 'night', laps: 2, difficulty: this.save.settings.difficulty || 'pro' };
+    this.chal = { type: 'drift', trackId: Data.TRACKS[0].id, tod: this.save.settings.tod || 'night' };
+    this._lastLaunch = { type: 'race' };
     this.currentRace = null;
     this.previewCarId = this.save.selectedId;
     this.garageReady = false;
@@ -46,6 +48,7 @@
     this._applyAudioMute();
     this._bindMenu();
     this._bindSetup();
+    this._bindChallenge();
     this._bindGarage();
     this._bindResults();
     this._bindSettings();
@@ -82,7 +85,7 @@
   };
   App.prototype.persist = function () { Data.saveSave(this.save); };
   App.prototype._syncCoins = function () {
-    ['menu-coins', 'setup-coins', 'garage-coins', 'showroom-coins', 'records-coins', 'achievements-coins'].forEach(function (id) {
+    ['menu-coins', 'setup-coins', 'challenge-coins', 'garage-coins', 'showroom-coins', 'records-coins', 'achievements-coins'].forEach(function (id) {
       var el = $(id); if (el) el.textContent = faNum(this.save.coins);
     }, this);
   };
@@ -111,6 +114,12 @@
       self._click();
       self.audio.stopMenuPad();
       self.show('screen-setup');
+    });
+    $('btn-challenge').addEventListener('click', function () {
+      self._click();
+      self.audio.stopMenuPad();
+      self.show('screen-challenge');
+      self._openChallenge();
     });
     $('btn-garage').addEventListener('click', function () {
       self._click();
@@ -320,6 +329,182 @@
     var s0 = px(pts[0][0], pts[0][2]);
     ctx.fillStyle = '#ffe45e';
     ctx.beginPath(); ctx.arc(s0[0], s0[1], 4.5, 0, Math.PI * 2); ctx.fill();
+  };
+
+  /* ============ چالش‌ها ============ */
+  var CHALLENGE_TYPES = [
+    { id:'drift', icon:'💨', name:'دریفت چالج', tag:'۸۰ ثانیه', time:80, target:2500,
+      desc:'در ۸۰ ثانیه بیشترین امتیاز دریفت را جمع کن. هر دور کامل ۱۲ ثانیه زمان و ۶۰۰ امتیاز پاداش می‌دهد. به امتیاز هدف ۲۵۰۰ برسی، برنده‌ای.',
+      reward:'تا ۱۸۰۰ سکه جایزه + سکه به ازای هر امتیاز دریفت' },
+    { id:'timeattack', icon:'⏱️', name:'زمان‌آزمایی', tag:'تک‌دور', time:0, target:0,
+      desc:'یک دور تنها و بدون حریف رانندگی کن و زیر «زمان پار» خط را بشکن. هرچه سریع‌تر، سکه جایزه بیش‌تر.',
+      reward:'تا ۹۰۰+ سکه بر اساس حاشیهٔ زمان زیر پار' }
+  ];
+  function challengeParTime(track) { return Math.round(track.lengthKm * 1000 / 48); } // ثانیه
+
+  App.prototype._bindChallenge = function () {
+    var self = this;
+    $('challenge-type-list').addEventListener('click', function (e) {
+      var card = e.target.closest('.challenge-type-card'); if (!card) return;
+      self.chal.type = card.getAttribute('data-type');
+      self._click(); self._renderChallengeTypes(); self._updateChallengeBar();
+    });
+    $('challenge-track-list').addEventListener('click', function (e) {
+      var card = e.target.closest('.track-card'); if (!card) return;
+      self.chal.trackId = card.getAttribute('data-track');
+      self._click(); self._renderChallengeTracks(); self._updateChallengeBar();
+    });
+    $('challenge-tod-list').addEventListener('click', function (e) {
+      var chip = e.target.closest('.choice-chip'); if (!chip) return;
+      self.chal.tod = chip.getAttribute('data-tod');
+      self._click(); self._renderChallengeTod();
+    });
+    $('btn-challenge-change-car').addEventListener('click', function () {
+      self._click(); self.show('screen-garage'); self._openGarage();
+    });
+    $('btn-challenge-launch').addEventListener('click', function () {
+      self._click(); self.audio.beep(true); self._launchChallenge();
+    });
+  };
+
+  App.prototype._openChallenge = function () {
+    var hasTrack = Data.TRACKS.some(function (t) { return t.id === this.chal.trackId; }, this);
+    if (!hasTrack) this.chal.trackId = Data.TRACKS[0].id;
+    this._renderChallengeTypes();
+    this._renderChallengeTracks();
+    this._renderChallengeTod();
+    this._updateChallengeBar();
+  };
+
+  App.prototype._renderChallengeTypes = function () {
+    var self = this;
+    $('challenge-type-list').innerHTML = CHALLENGE_TYPES.map(function (c) {
+      var sel = c.id === self.chal.type ? ' selected' : '';
+      return '<button class="challenge-type-card' + sel + '" data-type="' + c.id + '">' +
+        '<div class="ct-icon">' + c.icon + '</div>' +
+        '<div class="ct-name">' + c.name + '</div>' +
+        '<span class="ct-tag">' + c.tag + '</span>' +
+        '<div class="ct-desc">' + c.desc + '</div>' +
+        '<div class="ct-reward">🎁 ' + c.reward + '</div>' +
+      '</button>';
+    }).join('');
+  };
+
+  App.prototype._renderChallengeTracks = function () {
+    var self = this;
+    $('challenge-track-list').innerHTML = Data.TRACKS.map(function (t) {
+      var sel = t.id === self.chal.trackId ? ' selected' : '';
+      var envLabel = t.env === 'city' ? 'شهری' : t.env === 'desert' ? 'کویری' : 'کوهستانی';
+      return '<button class="track-card' + sel + '" data-track="' + t.id + '">' +
+        '<div class="track-body">' +
+          '<div class="track-name">' + t.name + '</div>' +
+          '<div class="track-en">' + t.en + '</div>' +
+          '<div class="track-desc">' + t.desc + '</div>' +
+          '<div class="track-meta"><span>' + t.lengthKm + ' کیلومتر</span><span>' + envLabel + '</span></div>' +
+        '</div>' +
+      '</button>';
+    }).join('');
+  };
+
+  App.prototype._renderChallengeTod = function () {
+    var self = this;
+    $('challenge-tod-list').innerHTML = Data.TOD.map(function (t) {
+      var sel = t.id === self.chal.tod ? ' selected' : '';
+      return '<button class="choice-chip tod-chip' + sel + '" data-tod="' + t.id + '"><span class="tod-sky tod-' + t.id + '"></span>' + t.name + '</button>';
+    }).join('');
+  };
+
+  App.prototype._challengeKey = function () { return this.chal.trackId + ':' + this.chal.type; };
+
+  App.prototype._challengeBest = function () {
+    var v = this.save.bestChallenges && this.save.bestChallenges[this._challengeKey()];
+    if (v == null) return null;
+    if (this.chal.type === 'timeattack') return Race.formatTime(v);
+    return faNum(Math.floor(v)) + ' امتیاز';
+  };
+
+  App.prototype._updateChallengeBar = function () {
+    var car = Data.getCar(this.save.selectedId);
+    $('challenge-car-name').textContent = car.name;
+    var cls = Data.CLASS_LABELS[car.cls];
+    var badge = $('challenge-car-class');
+    badge.textContent = cls.name;
+    badge.style.color = cls.color;
+    badge.style.borderColor = cls.color;
+    var type = CHALLENGE_TYPES[0], i;
+    for (i = 0; i < CHALLENGE_TYPES.length; i++) if (CHALLENGE_TYPES[i].id === this.chal.type) { type = CHALLENGE_TYPES[i]; break; }
+    var track = Data.TRACKS.find(function (t) { return t.id === this.chal.trackId; }, this) || Data.TRACKS[0];
+    var extra = type.id === 'drift'
+      ? 'هدف: ' + faNum(type.target) + ' امتیاز در ' + faNum(type.time) + ' ثانیه.'
+      : 'زمان پار این مسیر: ' + Race.formatTime(challengeParTime(track)) + ' — زیر این زمان بزن تا برنده شوی.';
+    $('challenge-desc').textContent = type.desc + ' ' + extra;
+    $('challenge-best').textContent = this._challengeBest() || 'هنوز رکوردی ثبت نشده — اولین باش!';
+  };
+
+  App.prototype._launchChallenge = function () {
+    var track = Data.TRACKS.find(function (t) { return t.id === this.chal.trackId; }, this) || Data.TRACKS[0];
+    var type = CHALLENGE_TYPES[0], i;
+    for (i = 0; i < CHALLENGE_TYPES.length; i++) if (CHALLENGE_TYPES[i].id === this.chal.type) { type = CHALLENGE_TYPES[i]; break; }
+    this._lastLaunch = { type: 'challenge', chType: type.id, trackId: track.id, tod: this.chal.tod };
+    var config = { trackId: track.id, tod: this.chal.tod, mode: type.id };
+    if (type.id === 'drift') { config.challengeTime = type.time; config.challengeTarget = type.target; }
+    else if (type.id === 'timeattack') { config.challengePar = challengeParTime(track); config.laps = 1; }
+    this._startSession(config);
+  };
+
+  /* راه‌اندازی مشترک مسابقه/چالش — بازنشانی HUD و ساخت RaceSession */
+  App.prototype._startSession = function (config) {
+    var self = this;
+    if (this.currentRace) { this.currentRace.dispose(); this.currentRace = null; }
+    this.show('screen-hud');
+    this.audio.stopMenuPad();
+    $('hud-pos').textContent = '1';
+    $('hud-lap').textContent = 'دور ۱/' + (config.laps || 1);
+    $('hud-time').textContent = '۰۰:۰۰.۰۰';
+    $('hud-best').textContent = '--:--.--';
+    $('hud-speed').textContent = '۰';
+    $('hud-gear').textContent = '1';
+    var touch = $('touch-controls');
+    if (touch) touch.classList.toggle('on', ('ontouchstart' in window) || navigator.maxTouchPoints > 0);
+    this.save.settings.tod = config.tod;
+    if (config.difficulty) this.save.settings.difficulty = config.difficulty;
+    this.persist();
+    config.container = $('race-container');
+    config.save = this.save;
+    config.audio = this.audio;
+    config.carId = this.save.selectedId;
+    config.callbacks = {
+      onFinish: function (result) { self._onRaceFinish(result); },
+      onQuit: function () {
+        self.currentRace = null;
+        self.show('screen-menu');
+        self.audio.startMenuPad();
+      },
+      onRestart: function () {
+        self.currentRace = null;
+        self._relaunchLast();
+      }
+    };
+    this.currentRace = new Race.RaceSession(config);
+  };
+
+  App.prototype._relaunchLast = function () {
+    var last = this._lastLaunch || { type: 'race' };
+    if (last.type === 'challenge') {
+      this.chal.type = last.chType; this.chal.trackId = last.trackId; this.chal.tod = last.tod;
+      this._launchChallenge();
+    } else {
+      this._launchRace();
+    }
+  };
+
+  /* مقداردهی ردیف‌های «رکوردها» در کارت نتایج (برچسب‌ها + مقادیر) */
+  App.prototype._setResultRecords = function (label1, val1, label2, val2) {
+    var labels = document.querySelectorAll('.result-records .record-label');
+    if (labels[0]) labels[0].textContent = label1;
+    if (labels[1]) labels[1].textContent = label2;
+    var b1 = $('result-best-lap'); if (b1) b1.textContent = val1;
+    var b2 = $('result-total-time'); if (b2) b2.textContent = val2;
   };
 
   /* ============ گاراژ ============ */
@@ -944,44 +1129,13 @@
 
   /* ============ راه‌اندازی مسابقه ============ */
   App.prototype._launchRace = function () {
-    var self = this;
-    if (this.currentRace) { this.currentRace.dispose(); this.currentRace = null; }
-    this.show('screen-hud');
-    this.audio.stopMenuPad();
-    /* بازنشانی HUD */
-    $('hud-pos').textContent = '1';
-    $('hud-lap').textContent = 'دور ۱/' + this.sel.laps;
-    $('hud-time').textContent = '۰۰:۰۰.۰۰';
-    $('hud-best').textContent = '--:--.--';
-    $('hud-speed').textContent = '۰';
-    $('hud-gear').textContent = '1';
-    var touch = $('touch-controls');
-    if (touch) touch.classList.toggle('on', ('ontouchstart' in window) || navigator.maxTouchPoints > 0);
-    this.save.settings.tod = this.sel.tod;
-    this.save.settings.difficulty = this.sel.difficulty;
-    this.persist();
-
-    this.currentRace = new Race.RaceSession({
-      container: $('race-container'),
+    this._lastLaunch = { type: 'race' };
+    this._startSession({
       trackId: this.sel.trackId,
       tod: this.sel.tod,
       laps: this.sel.laps,
       difficulty: this.sel.difficulty,
-      carId: this.save.selectedId,
-      save: this.save,
-      audio: this.audio,
-      callbacks: {
-        onFinish: function (result) { self._onRaceFinish(result); },
-        onQuit: function () {
-          self.currentRace = null;
-          self.show('screen-menu');
-          self.audio.startMenuPad();
-        },
-        onRestart: function () {
-          self.currentRace = null;
-          self._launchRace();
-        }
-      }
+      mode: 'race'
     });
   };
 
@@ -1001,25 +1155,53 @@
     var prevTotal = save.bestTotal[result.trackId];
     if (!prevTotal || result.totalTime < prevTotal) save.bestTotal[result.trackId] = result.totalTime;
     if (result.driftScore > (save.stats.driftBest || 0)) save.stats.driftBest = result.driftScore;
+    /* ذخیرهٔ رکورد چالش‌ها */
+    if (result.mode === 'drift' || result.mode === 'timeattack') {
+      save.bestChallenges = save.bestChallenges || {};
+      var ckey = result.trackId + ':' + result.mode;
+      var cprev = save.bestChallenges[ckey];
+      if (result.mode === 'drift') { if (cprev == null || result.driftScore > cprev) { save.bestChallenges[ckey] = result.driftScore; newBest = true; } }
+      else { if (cprev == null || result.totalTime < cprev) { save.bestChallenges[ckey] = result.totalTime; newBest = true; } }
+    }
     this.persist();
     this._syncCoins();
     this._syncRecordUI();
     this._renderTrackBests();
 
-    /* پر کردن کارت نتایج */
-    var medal = result.place === 1 ? '🥇' : result.place === 2 ? '🥈' : result.place === 3 ? '🥉' : '🏳️';
-    $('result-medal').textContent = medal;
-    $('result-title').textContent = result.win ? 'برنده شدید!' : 'رتبهٔ ' + faNum(result.place) + ' ام';
+    /* پر کردن کارت نتایج (آگاه از نوع مسابقه/چالش) */
     var track = Data.TRACKS.find(function (t) { return t.id === result.trackId; });
     var todName = (Data.TOD.find(function (t) { return t.id === result.tod; }) || {}).name || '';
-    $('result-track').textContent = (track ? track.name : '') + ' · ' + todName;
-    $('result-place').textContent = faNum(result.place);
-    $('result-place-coins').textContent = faNum(result.placeReward);
-    $('result-drift-score').textContent = faNum(result.driftScore);
-    $('result-drift-coins').textContent = faNum(result.driftBonus);
-    $('result-total-coins').textContent = faNum(result.coins);
-    $('result-best-lap').textContent = result.bestLap ? Race.formatTime(result.bestLap) : '--:--.--';
-    $('result-total-time').textContent = Race.formatTime(result.totalTime);
+    var trackLine = (track ? track.name : '') + ' · ' + todName;
+    var bd = document.querySelector('.result-breakdown');
+
+    if (result.mode === 'drift') {
+      $('result-medal').textContent = result.win ? '🏆' : '💨';
+      $('result-title').textContent = result.win ? 'رکورد دریفت! برنده شدی' : 'به هدف نرسیدی — دوباره!';
+      $('result-track').textContent = trackLine + ' · دریفت‌چالج';
+      if (bd) bd.innerHTML =
+        '<div class="result-row"><span>جایزهٔ چالش (رتبه <b>' + faNum(result.place) + '</b>)</span><span class="coin">🪙 <b>' + faNum(result.placeReward) + '</b></span></div>' +
+        '<div class="result-row"><span>امتیاز دریفت (<b>' + faNum(result.driftScore) + '</b> / هدف <b>' + faNum(result.challengeTarget) + '</b>)</span><span class="coin">🪙 <b>' + faNum(result.driftBonus) + '</b></span></div>' +
+        '<div class="result-row total"><span>مجموع دریافتی</span><span class="coin">🪙 <b>' + faNum(result.coins) + '</b></span></div>';
+      this._setResultRecords('امتیاز دریفت', faNum(result.driftScore) + ' / ' + faNum(result.challengeTarget), 'زمان مصرفی', Race.formatTime(result.totalTime));
+    } else if (result.mode === 'timeattack') {
+      $('result-medal').textContent = result.win ? '⏱️' : '🏳️';
+      $('result-title').textContent = result.win ? 'زمان زیر پار! برنده شدی' : 'بالای پار — دوباره تلاش کن';
+      $('result-track').textContent = trackLine + ' · زمان‌آزمایی';
+      if (bd) bd.innerHTML =
+        '<div class="result-row"><span>جایزهٔ چالش</span><span class="coin">🪙 <b>' + faNum(result.coins) + '</b></span></div>' +
+        '<div class="result-row"><span>زمان شما <b>' + Race.formatTime(result.totalTime) + '</b> · پار <b>' + Race.formatTime(result.challengePar) + '</b></span><span class="coin">' + (result.win ? '✅ زیر پار' : '❌ بالای پار') + '</span></div>' +
+        '<div class="result-row total"><span>مجموع دریافتی</span><span class="coin">🪙 <b>' + faNum(result.coins) + '</b></span></div>';
+      this._setResultRecords('زمان شما', Race.formatTime(result.totalTime), 'زمان پار', Race.formatTime(result.challengePar));
+    } else {
+      $('result-medal').textContent = result.place === 1 ? '🥇' : result.place === 2 ? '🥈' : result.place === 3 ? '🥉' : '🏳️';
+      $('result-title').textContent = result.win ? 'برنده شدید!' : 'رتبهٔ ' + faNum(result.place) + ' ام';
+      $('result-track').textContent = trackLine;
+      if (bd) bd.innerHTML =
+        '<div class="result-row"><span>جایزهٔ رتبه <b>' + faNum(result.place) + '</b>ام</span><span class="coin">🪙 <b>' + faNum(result.placeReward) + '</b></span></div>' +
+        '<div class="result-row"><span>پاداش دریفت (<b>' + faNum(result.driftScore) + '</b> امتیاز)</span><span class="coin">🪙 <b>' + faNum(result.driftBonus) + '</b></span></div>' +
+        '<div class="result-row total"><span>مجموع دریافتی</span><span class="coin">🪙 <b>' + faNum(result.coins) + '</b></span></div>';
+      this._setResultRecords('بهترین دور', result.bestLap ? Race.formatTime(result.bestLap) : '--:--.--', 'زمان کل', Race.formatTime(result.totalTime));
+    }
     $('result-new-best').classList.toggle('hidden', !newBest);
 
     this.show('screen-results');
@@ -1030,7 +1212,7 @@
     $('btn-retry').addEventListener('click', function () {
       self._click();
       if (self.currentRace) { self.currentRace.dispose(); self.currentRace = null; }
-      self._launchRace();
+      self._relaunchLast();
     });
     $('btn-results-garage').addEventListener('click', function () {
       self._click();

@@ -212,6 +212,7 @@
     upgrades: {},            // carId -> {engine,tires,brakes}
     bestLaps: {},            // trackId -> seconds
     bestTotal: {},
+    bestChallenges: {},      // "trackId:mode" -> drift score (بیشتر=بهتر) یا زمان ثانیه (کمتر=بهتر)
     stats: { wins: 0, races: 0, driftBest: 0 },
     settings: { tod: 'night', difficulty: 'pro', quality: 'high', camera: 'chase', muted: false }
   };
