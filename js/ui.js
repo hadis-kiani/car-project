@@ -956,7 +956,7 @@
     $('hud-speed').textContent = '۰';
     $('hud-gear').textContent = '1';
     var touch = $('touch-controls');
-    if (touch) touch.classList.toggle('on', ('ontouchstart' in window) || navigator.maxTouchPoints > 0);
+    if (touch) touch.classList.add('on'); // کنترل‌های گاز و ترمز در همهٔ دستگاه‌ها همیشه قابل‌استفاده‌اند.
     this.save.settings.tod = this.sel.tod;
     this.save.settings.difficulty = this.sel.difficulty;
     this.persist();

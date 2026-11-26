@@ -483,3 +483,57 @@ kbd{background:#1c2233;border:1px solid #33405e;border-bottom-width:3px;border-r
   .result-buttons{flex-direction:column}
   .result-buttons .btn{width:100%}
 }
+
+
+/* ============ مسیر و کنترل‌های همیشه‌نمای مسابقه ============ */
+/* این پنل عمداً در بالای صفحه قرار دارد تا مسیر و خط پایان، حتی در شلوغ‌ترین لحظهٔ مسابقه، واضح باشند. */
+.race-route-banner{position:absolute;top:14px;left:50%;transform:translateX(-50%);width:min(420px,42vw);padding:9px 14px 10px;border:1px solid rgba(125,235,255,.34);border-radius:16px;background:linear-gradient(135deg,rgba(5,15,29,.86),rgba(10,32,52,.68));backdrop-filter:blur(12px);box-shadow:0 10px 34px rgba(0,0,0,.3),inset 0 1px 0 rgba(255,255,255,.08);direction:rtl;pointer-events:none}
+.route-title-row{display:flex;align-items:center;justify-content:space-between;gap:12px;line-height:1.1}
+.route-track{display:flex;align-items:baseline;gap:8px;min-width:0}
+.route-kicker{color:#8ca4bd;font-size:.62rem;font-weight:700;white-space:nowrap}
+#hud-track-name{font-size:.82rem;color:#edfbff;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.route-finish-label{color:#ffe45e;font-size:.72rem;font-weight:900;white-space:nowrap;text-shadow:0 0 12px rgba(255,228,94,.4)}
+.route-progress{display:flex;align-items:center;gap:8px;margin-top:8px;direction:rtl}
+.route-start,.route-goal{font-size:.6rem;font-weight:800;white-space:nowrap;color:#a8b7ca}
+.route-goal{font-size:.86rem;color:#ffe45e;filter:drop-shadow(0 0 5px rgba(255,228,94,.65))}
+.route-rail{position:relative;flex:1;height:7px;overflow:visible;border-radius:99px;background:repeating-linear-gradient(90deg,rgba(255,255,255,.12) 0 11px,transparent 11px 16px),linear-gradient(90deg,#057b93,#00d9ff 48%,#ffdf58);box-shadow:inset 0 1px 4px rgba(0,0,0,.5),0 0 12px rgba(0,229,255,.2)}
+.route-marker{position:absolute;top:50%;right:100%;width:16px;height:16px;border-radius:50%;background:radial-gradient(circle at 35% 30%,#fff 0 14%,#ffe45e 16% 42%,#ff9e1a 45% 100%);border:2px solid #fff;box-shadow:0 0 0 3px rgba(0,0,0,.35),0 0 14px rgba(255,220,75,.9);transform:translate(50%,-50%);transition:right .12s linear;will-change:right}
+
+/* گاز و ترمز روی همهٔ نمایشگرها دردسترس‌اند؛ کیبورد همچنان کنترل دقیق‌تر را ارائه می‌کند. */
+#touch-controls{display:flex;position:absolute;inset:auto 0 0 0;justify-content:space-between;align-items:flex-end;padding:0 18px 18px;z-index:6;pointer-events:none}
+.touch-left,.touch-right{display:flex;gap:10px;pointer-events:auto}
+.touch-left{margin-left:142px}
+.touch-right{margin-right:8px}
+.touch-btn{touch-action:none;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;line-height:1;border-color:rgba(255,255,255,.28);box-shadow:0 8px 25px rgba(0,0,0,.25)}
+.touch-btn small{font:700 .53rem/1 var(--font);opacity:.72;letter-spacing:.25px;direction:ltr}
+.touch-action{font-size:.8rem;line-height:1.1}
+.touch-btn.gas,.touch-btn.brake{width:86px;height:86px}
+.touch-btn.gas .touch-action,.touch-btn.brake .touch-action{font-size:.9rem}
+.touch-btn.drift{height:66px}
+@media (min-width:721px){
+  .hud-speedo{bottom:126px;right:24px}
+  #minimap{bottom:122px}
+}
+@media (max-width:720px){
+  .race-route-banner{top:62px;width:min(92vw,410px);padding:8px 11px}
+  .route-kicker{display:none}
+  #hud-track-name{font-size:.72rem}
+  .route-finish-label{font-size:.65rem}
+  #touch-controls{padding:0 9px 12px}
+  .touch-left{margin-left:0}
+  .touch-right{margin-right:0;gap:7px}
+  .touch-btn{width:60px;height:60px;font-size:1.25rem}
+  .touch-btn.gas,.touch-btn.brake{width:69px;height:69px}
+  .touch-btn.drift{width:57px;height:57px}
+  .touch-action{font-size:.65rem}
+  .touch-btn.gas .touch-action,.touch-btn.brake .touch-action{font-size:.72rem}
+  .touch-btn small{font-size:.47rem}
+}
+@media (max-width:420px){
+  .race-route-banner{width:88vw;top:58px}
+  .route-start{display:none}
+  .touch-right{gap:5px}
+  .touch-btn.gas,.touch-btn.brake{width:61px;height:61px}
+  .touch-btn.drift{width:52px;height:52px}
+  .touch-left .touch-btn{width:54px;height:54px}
+}

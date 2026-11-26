@@ -87,6 +87,12 @@
     this.world = World.buildRaceWorld(scene, renderer, this.track, this.tod);
     scene.fog.far = this.tod === 'night' ? 520 : this.tod === 'sunset' ? 700 : 860;
 
+    /* نام مسیر و خط پایان، همیشه در بالای HUD دیده می‌شوند. */
+    var trackName = document.getElementById('hud-track-name');
+    if (trackName) trackName.textContent = this.track.name + ' · ' + this.track.lengthKm + ' km';
+    var routeMarker = document.getElementById('hud-route-marker');
+    if (routeMarker) routeMarker.style.right = '100%';
+
     this._resizeHandler = this._onResize.bind(this);
     window.addEventListener('resize', this._resizeHandler);
   };
@@ -768,6 +774,12 @@
     }
     var lapEl = document.getElementById('hud-lap');
     if (lapEl) lapEl.textContent = 'دور ' + Math.min(this.lap, this.laps) + '/' + this.laps;
+    /* نشانگر بالا از «شروع» تا «خط پایانِ دور فعلی» حرکت می‌کند. */
+    var routeMarker = document.getElementById('hud-route-marker');
+    if (routeMarker && this.world && this.world.length) {
+      var lapProgress = ((this.progress % this.world.length) + this.world.length) % this.world.length;
+      routeMarker.style.right = (100 - clamp(lapProgress / this.world.length * 100, 0, 100)) + '%';
+    }
     var timeEl = document.getElementById('hud-time');
     if (timeEl) timeEl.textContent = formatTime(this.racingTime);
     var bestEl = document.getElementById('hud-best');
